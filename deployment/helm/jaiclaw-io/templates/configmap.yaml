@@ -1,0 +1,101 @@
+{{- if .Values.configMap.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "jaiclaw-io.fullname" . }}-config
+  labels:
+    {{- include "jaiclaw-io.labels" . | nindent 4 }}
+data:
+  {{- with .Values.configMap.data }}
+  {{- toYaml . | nindent 2 }}
+  {{- end }}
+{{- end }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "jaiclaw-io.fullname" . }}-nginx
+  labels:
+    {{- include "jaiclaw-io.labels" . | nindent 4 }}
+data:
+  default.conf: |
+    server {
+        listen 8080;
+        server_name localhost;
+        server_tokens off;
+
+        root /usr/share/nginx/html;
+        index index.html;
+
+        # Custom 404 error page
+        error_page 404 /404.html;
+        location = /404.html {
+            internal;
+        }
+
+        # Block hidden files/directories (.git, .env, etc.)
+        location ~ /\. {
+            return 404;
+        }
+
+        # Block all .php requests
+        location ~ \.php$ {
+            return 404;
+        }
+
+        # Health check endpoint
+        location = /health {
+            access_log off;
+            return 200 "healthy\n";
+            add_header Content-Type text/plain;
+        }
+
+        # Static assets with caching (JS, CSS, images, fonts)
+        location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|webp|woff|woff2|ttf|eot|map)$ {
+            expires 1y;
+            add_header Cache-Control "public, immutable";
+            add_header X-Frame-Options "SAMEORIGIN" always;
+            add_header X-Content-Type-Options "nosniff" always;
+            add_header X-XSS-Protection "1; mode=block" always;
+        }
+
+        # Install script — served as plain text for curl | bash
+        location = /install.sh {
+            default_type "text/plain; charset=utf-8";
+            add_header Cache-Control "no-cache, no-store, must-revalidate";
+            add_header X-Content-Type-Options "nosniff" always;
+        }
+
+        # Whitepapers — served as static files
+        location /whitepapers/ {
+            add_header X-Content-Type-Options "nosniff" always;
+        }
+
+        # SPA route allowlist — exact matches
+        location = /            { try_files /index.html =404; }
+        location = /home        { try_files /index.html =404; }
+        location = /features    { try_files /index.html =404; }
+        location = /why         { try_files /index.html =404; }
+        location = /docs        { try_files /index.html =404; }
+        location = /resources   { try_files /index.html =404; }
+        location = /examples    { try_files /index.html =404; }
+        location = /pricing     { try_files /index.html =404; }
+        location = /enterprise  { try_files /index.html =404; }
+        location = /contact     { try_files /index.html =404; }
+
+        # Catch-all: return real 404 for anything not matched
+        location / {
+            return 404;
+        }
+
+        # Security headers
+        add_header X-Frame-Options "SAMEORIGIN" always;
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header X-XSS-Protection "1; mode=block" always;
+
+        # Gzip compression
+        gzip on;
+        gzip_vary on;
+        gzip_min_length 1024;
+        gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript;
+    }

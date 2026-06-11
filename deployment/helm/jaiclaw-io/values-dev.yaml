@@ -1,0 +1,63 @@
+# Development environment values
+# Override default values for development
+#
+# Image Tag Strategy: dev
+# Build command: mvn clean package k8s:build k8s:push -Pdev
+
+# Replica count for dev (single instance)
+replicaCount: 1
+
+# Image configuration for dev
+image:
+  registry: tooling.taptech.net:5000
+  repository: jaiclaw-io
+  tag: "dev"
+  pullPolicy: Always
+
+# Resource limits for dev (lower resources)
+container:
+  resources:
+    limits:
+      cpu: 100m
+      memory: 128Mi
+    requests:
+      cpu: 50m
+      memory: 64Mi
+
+# Service configuration
+service:
+  type: NodePort
+  port: 80
+  annotations:
+    dev.environment: "true"
+
+# Ingress for dev
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+  hosts:
+    - host: jaiclaw-io-dev.local
+      paths:
+        - path: /
+          pathType: Prefix
+
+# Environment variables for dev (DOCUMENTATION ONLY - set at build time)
+env:
+  - name: NODE_ENV
+    value: "development"
+
+# Disable autoscaling in dev
+autoscaling:
+  enabled: false
+
+# Pod disruption budget not needed in dev
+podDisruptionBudget:
+  enabled: false
+
+# Pod annotations for dev
+podAnnotations:
+  environment: "development"
+  version: "dev"

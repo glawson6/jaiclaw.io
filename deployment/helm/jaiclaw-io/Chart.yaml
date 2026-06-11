@@ -1,0 +1,27 @@
+apiVersion: v2
+name: jaiclaw-io
+description: A Helm chart for JaiClaw.io Marketing Website
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+
+home: https://github.com/glawson6/jaiclaw.io
+maintainers:
+  - name: Gregory Lawson
+    email: gregory@taptechholdings.com
+    url: https://jaiclaw.io
+
+keywords:
+  - react
+  - frontend
+  - nginx
+  - ui
+  - jaiclaw
+  - ai-framework
+
+sources:
+  - https://github.com/glawson6/jaiclaw.io
+
+annotations:
+  category: Frontend
+  licenses: Apache-2.0

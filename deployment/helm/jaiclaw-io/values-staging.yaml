@@ -1,0 +1,71 @@
+# Staging environment values
+# Override default values for staging
+#
+# Image Tag Strategy: staging or version tag with -rc suffix (e.g., 1.0.0-rc1)
+# Build command: mvn clean package k8s:build k8s:push -Pstaging
+
+# Replica count for staging (2 instances for HA)
+replicaCount: 2
+
+# Image configuration for staging
+image:
+  registry: tooling.taptech.net:5000
+  repository: jaiclaw-io
+  tag: "staging"
+  pullPolicy: Always
+
+# Resource configuration for staging
+container:
+  resources:
+    limits:
+      cpu: 200m
+      memory: 256Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+# Service configuration
+service:
+  type: ClusterIP
+  port: 80
+  annotations:
+    staging.environment: "true"
+
+# Ingress for staging
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    cert-manager.io/cluster-issuer: "letsencrypt-staging"
+  hosts:
+    - host: jaiclaw-io-staging.taptech.net
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: jaiclaw-io-staging-tls
+      hosts:
+        - jaiclaw-io-staging.taptech.net
+
+# Environment variables for staging (DOCUMENTATION ONLY - set at build time)
+env:
+  - name: NODE_ENV
+    value: "staging"
+
+# Enable autoscaling for staging
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 4
+  targetCPUUtilizationPercentage: 70
+
+# Pod disruption budget for HA
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+# Pod annotations for staging
+podAnnotations:
+  environment: "staging"
+  backup: "enabled"
