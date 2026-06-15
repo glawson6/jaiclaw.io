@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { Outlet, useLocation, NavLink } from 'react-router-dom';
 import jaiclawLogo from '../assets/images/jaiclaw-logo.png';
 import ScrollToTop from '../components/ScrollToTop.jsx';
-import { GITHUB_URL, TAPTECH_URL } from '../config/constants.js';
+import { GITHUB_URL, TAPTECH_URL, FEATURE_PRICING } from '../config/constants.js';
 
 const defaultTitle = 'JaiClaw - The Java Framework for AI Assistants';
 
@@ -50,9 +50,11 @@ export default function MainLayout() {
         <NavLink to="/examples" className={({ isActive }) => isActive ? 'active' : ''}>
           Examples
         </NavLink>
-        <NavLink to="/pricing" className={({ isActive }) => isActive ? 'active' : ''}>
-          Pricing
-        </NavLink>
+        {FEATURE_PRICING && (
+          <NavLink to="/pricing" className={({ isActive }) => isActive ? 'active' : ''}>
+            Pricing
+          </NavLink>
+        )}
         <NavLink to="/enterprise" className={({ isActive }) => isActive ? 'active' : ''}>
           Enterprise
         </NavLink>

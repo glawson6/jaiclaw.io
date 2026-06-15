@@ -151,12 +151,12 @@ export const features = [
     id: 'billing',
     title: 'Subscription Billing',
     icon: 'bi-credit-card',
-    description: 'Turn your bot into a SaaS product. Stripe, PayPal, and Telegram Payments built in with subscription lifecycle management.',
+    description: 'Turn your bot into a SaaS product. A channel-agnostic PaymentProvider SPI with three production implementations — webhook-verified Stripe, PayPal Orders API, and Telegram in-chat invoicing — plus subscription lifecycle, expiry scheduling, and feature-grant access control.',
     highlights: [
-      { label: 'Stripe', detail: 'Full subscription lifecycle' },
-      { label: 'PayPal', detail: 'Payment processing' },
-      { label: 'Telegram Payments', detail: 'In-chat purchasing' },
-      { label: 'Access Control', detail: 'Grant features on payment' },
+      { label: 'Stripe', detail: 'Full subscription lifecycle — Checkout Sessions, signature-verified webhooks, programmatic cancellation' },
+      { label: 'PayPal', detail: 'Orders API v2 checkout + opt-in webhook signature verification via PayPal\'s verification endpoint' },
+      { label: 'Telegram Payments', detail: 'In-chat invoicing via Bot Payments API — frontend for an underlying provider token (e.g. Stripe Connect)' },
+      { label: 'Access Control', detail: 'Grant features on payment, revoke on expiry, per-tenant lifecycle hooks' },
     ],
   },
   {
