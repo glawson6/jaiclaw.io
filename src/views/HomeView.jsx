@@ -10,7 +10,7 @@ const MAVEN_SNIPPET = `<dependencyManagement>
     <dependency>
       <groupId>io.jaiclaw</groupId>
       <artifactId>jaiclaw-bom</artifactId>
-      <version>0.8.0</version>
+      <version>0.9.0</version>
       <type>pom</type>
       <scope>import</scope>
     </dependency>
@@ -28,7 +28,7 @@ const homeFeatures = [
   { icon: 'bi-chat-dots', title: '11 Channels', description: 'Telegram, Slack, Discord, Email, SMS, Signal, Teams, WhatsApp, Google Chat, LINE, Matrix. All support local dev mode.' },
   { icon: 'bi-cpu', title: '11 LLM Providers', description: 'Anthropic, OpenAI, Gemini, Ollama, Bedrock, and more. Swap with one env var.' },
   { icon: 'bi-tools', title: '38+ Tools', description: 'File editing, browser automation, Kubernetes monitoring, document analysis, and more.' },
-  { icon: 'bi-lightbulb', title: '59 Skills', description: 'Pre-built capabilities from system admin to content generation, loaded from markdown.' },
+  { icon: 'bi-lightbulb', title: '60+ Skills', description: 'Pre-built capabilities from system admin to content generation, loaded from markdown.' },
   { icon: 'bi-building', title: 'Multi-Tenancy', description: 'JWT-based tenant isolation with per-tenant sessions, memory, skills, and billing.' },
   { icon: 'bi-diagram-3', title: 'Multi-Agent', description: 'GOAP planning via Embabel — deterministic action sequences with auto parallelism.' },
 ];

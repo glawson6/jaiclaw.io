@@ -294,4 +294,18 @@ export const examples = [
     description: 'New-hire or customer intake workflow with form parsing and downstream provisioning.',
     modules: ['Documents', 'Identity'],
   },
+  {
+    name: 'agentmind-demo',
+    title: 'AgentMind Demo',
+    category: 'Getting Started',
+    description: 'Runnable end-to-end demo wiring Soul + Memory + Tendencies against a local Anthropic endpoint, with golden-file prompt composition spec.',
+    modules: ['AgentMind', 'Soul', 'Memory'],
+  },
+  {
+    name: 'kanban-demo',
+    title: 'Kanban Demo',
+    category: 'Business Workflows',
+    description: 'Canonical task-board demo — custom state graph, agent-backed columns, live SSE event stream, REST/Actuator surface, ASCII board rendering.',
+    modules: ['Kanban', 'SSE'],
+  },
 ];

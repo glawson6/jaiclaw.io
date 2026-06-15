@@ -55,9 +55,9 @@ export const features = [
     id: 'skills',
     title: 'Skills System',
     icon: 'bi-lightbulb',
-    description: '59 bundled skills loaded from markdown with YAML frontmatter. Create custom skills or use the built-in library.',
+    description: '60+ bundled skills loaded from markdown with YAML frontmatter. Create custom skills or use the built-in library.',
     highlights: [
-      { label: '59 Bundled Skills', detail: 'System admin to content generation' },
+      { label: '60+ Bundled Skills', detail: 'System admin to content generation' },
       { label: 'Markdown Format', detail: 'YAML frontmatter + markdown body' },
       { label: 'Custom Skills', detail: 'Add your own with simple markdown files' },
       { label: 'Skill Profiles', detail: 'Assign skill sets per use case' },
@@ -161,14 +161,14 @@ export const features = [
   },
   {
     id: 'pipelines',
-    title: 'Declarative Pipelines',
+    title: 'Pipelines — Declarative or Code-Based',
     icon: 'bi-bezier2',
-    description: 'Compose multi-stage workflows — classify → route → respond, ETL with human-in-the-loop, document processing — as declarative pipelines with typed stage outputs.',
+    description: 'Compose multi-stage workflows in YAML or in Java with a fluent .then(...) DSL — same runtime either way. Trigger via REST, watch via Actuator, validated at startup, hookable across the lifecycle.',
     highlights: [
-      { label: 'Multi-Stage', detail: 'Chain LLM, tool, and code stages' },
-      { label: 'Typed Outputs', detail: 'Stage-to-stage type safety' },
-      { label: 'Human-in-the-Loop', detail: 'Pause for approval at any stage' },
-      { label: 'Composable', detail: 'Reuse stages across pipelines' },
+      { label: 'YAML Pipelines', detail: 'Declarative stages, {{input}} / {{stages.*}} / {{pipeline.*}} templates, validated at boot' },
+      { label: 'Java DSL', detail: 'Fluent .then(...) builder for programmatic composition — same PipelineDefinition contract' },
+      { label: 'Stage Types', detail: 'AGENT (LLM), PROCESSOR (bean), and Camel stages, chainable in either authoring mode' },
+      { label: 'Operational Surface', detail: 'POST /api/pipelines/{id}/trigger gateway + /actuator/pipelines execution tracker' },
     ],
   },
   {
@@ -241,6 +241,30 @@ export const features = [
       { label: 'Cooldown Tracking', detail: 'Back off rate-limited keys automatically' },
       { label: 'Claude CLI Sync', detail: 'Reuse local CLI auth' },
       { label: 'Codex CLI Sync', detail: 'Reuse local CLI auth' },
+    ],
+  },
+  {
+    id: 'agentmind',
+    title: 'AgentMind: Soul / Memory / Tendencies',
+    icon: 'bi-brain',
+    description: 'Persistent agent personality, bounded cross-session memory, and per-user behavioral learning — without a vector database. Three opt-in pillars compose into a system prompt the agent helps maintain.',
+    highlights: [
+      { label: 'Soul', detail: 'Persona overlay (concise / technical / mentor / socratic / pirate) — swap at runtime via the personality tool' },
+      { label: 'Memory', detail: 'Single-document markdown memory mutated in-place by the agent, with char-budgeted overflow consolidation' },
+      { label: 'Tendencies', detail: 'Per-user communication-style inference — deterministic default, swap to LLM-backed or remote Honcho' },
+      { label: 'Opt-In, Multi-Tenant', detail: 'All three pillars off by default; per-agent and per-tenant scoping under JWT isolation' },
+    ],
+  },
+  {
+    id: 'kanban',
+    title: 'Kanban Task Boards',
+    icon: 'bi-kanban',
+    description: 'Declarative task boards where columns are agent-backed processors. Custom state graphs, idempotent retries, crash recovery, and live SSE event streams — no external queue or workflow engine.',
+    highlights: [
+      { label: 'Custom State Graphs', detail: 'Define transitions and side-states (e.g. blocked) per board; the engine enforces the graph' },
+      { label: 'Agent Column Processors', detail: 'Fire deterministic or LLM-backed runners on column entry; idempotent via EffectLedger' },
+      { label: 'REST + SSE + Actuator', detail: 'Full Spring Boot surface — live board events, board snapshots, metrics' },
+      { label: 'Pluggable Stores', detail: 'YAML, H2, JDBC, Redis, Postgres backends; durable per-board transition journal' },
     ],
   },
 ];
