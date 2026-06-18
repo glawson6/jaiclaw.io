@@ -18,9 +18,10 @@ set -euo pipefail
 
 # ─── Constants ────────────────────────────────────────────────────────────────
 
-JAICLAW_VERSION="${JAICLAW_VERSION:-0.7.1-SNAPSHOT}"
+JAICLAW_VERSION="${JAICLAW_VERSION:-0.9.0}"
 JAICLAW_HOME="${JAICLAW_HOME:-$HOME/.jaiclaw}"
 JAICLAW_REPO="glawson6/jaiclaw"
+JAICLAW_CLI_BASE_URL="${JAICLAW_CLI_BASE_URL:-https://jaiclaw.io/downloads}"
 JAVA_MIN_VERSION=21
 
 # ─── Colors ───────────────────────────────────────────────────────────────────
@@ -169,16 +170,28 @@ install_jar() {
         fi
     fi
 
-    # Try to download from GitHub releases
-    local url="https://github.com/$JAICLAW_REPO/releases/download/v${JAICLAW_VERSION}/jaiclaw-cli-${JAICLAW_VERSION}.jar"
-    info "Downloading CLI JAR from GitHub releases..."
-    if curl -sSL -o "$JAICLAW_HOME/bin/jaiclaw-cli.jar" "$url" 2>/dev/null; then
-        ok "Downloaded CLI JAR"
-    else
-        warn "CLI JAR not available for download"
+    # Download from jaiclaw.io
+    local url="${JAICLAW_CLI_BASE_URL}/jaiclaw-cli-${JAICLAW_VERSION}.jar"
+    local dest="$JAICLAW_HOME/bin/jaiclaw-cli.jar"
+    info "Downloading CLI JAR from ${url}"
+    # -f: fail on HTTP errors instead of writing the error body into the jar.
+    if ! curl -fsSL -o "$dest" "$url"; then
+        rm -f "$dest"
+        err "Failed to download CLI JAR from $url"
         echo "Build from source: ./mvnw package -pl :jaiclaw-cli -am -DskipTests"
-        echo "Then copy to: $JAICLAW_HOME/bin/jaiclaw-cli.jar"
+        echo "Then copy to: $dest"
+        return 1
     fi
+
+    # Sanity check — every JAR is a ZIP and starts with the magic bytes 'PK\x03\x04'.
+    # A 404 HTML page or rate-limit error written into the file would fail this check
+    # and trip "Invalid or corrupt jarfile" only later when Java tries to run it.
+    if ! head -c4 "$dest" | grep -q $'^PK\x03\x04'; then
+        rm -f "$dest"
+        err "Downloaded file is not a valid JAR (magic bytes mismatch). Aborting."
+        return 1
+    fi
+    ok "Downloaded CLI JAR ($(wc -c <"$dest" | tr -d ' ') bytes)"
 }
 
 # ─── Create default profile ─────────────────────────────────────────────────
