@@ -10,7 +10,7 @@ const MAVEN_SNIPPET = `<dependencyManagement>
     <dependency>
       <groupId>io.jaiclaw</groupId>
       <artifactId>jaiclaw-bom</artifactId>
-      <version>0.9.0</version>
+      <version>0.9.2</version>
       <type>pom</type>
       <scope>import</scope>
     </dependency>
