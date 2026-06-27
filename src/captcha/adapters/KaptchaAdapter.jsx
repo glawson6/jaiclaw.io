@@ -23,8 +23,13 @@ export default function KaptchaAdapter({ config, baseUrl, onSolved, onReload }) 
     <div className="form-group captcha-section">
       <label htmlFor="captchaAnswer">Enter the text shown *</label>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        {/* No cache-buster — config.imageUrl already embeds config.id, so the
+            URL only changes when the captcha is re-minted (page reload, 🔄
+            button, or captcha-failed retry). A Date.now() query string would
+            re-evaluate on every render and force a fresh PNG fetch on each
+            keystroke, swapping the image under the user as they type. */}
         <img
-          src={`${baseUrl}${config.imageUrl}?t=${Date.now()}`}
+          src={`${baseUrl}${config.imageUrl}`}
           alt="CAPTCHA"
         />
         <button type="button" onClick={onReload} aria-label="Refresh captcha">🔄</button>
