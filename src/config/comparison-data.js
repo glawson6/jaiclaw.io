@@ -38,7 +38,7 @@ export const comparisons = [
     summary: 'Spring AI gives you LLM client abstractions and chat memory. JaiClaw is what you build on top of Spring AI to ship a real product.',
     bullets: [
       'Spring AI: chat client, vector store, advisors. No channels, no tools registry, no multi-tenancy, no billing.',
-      'JaiClaw: all of Spring AI plus channels, 38+ tools, 59 skills, GOAP planning, multi-tenancy, MCP hosting, billing, voice.',
+      'JaiClaw: all of Spring AI plus channels, 38+ tools, a bundled skills library, GOAP planning, multi-tenancy, MCP hosting, billing, voice.',
       'You still use Spring AI under the hood — JaiClaw makes Spring AI assistants production-ready.',
     ],
   },
@@ -80,7 +80,7 @@ export const whenNotToChoose = {
   cases: [
     {
       label: 'You are not on the JVM',
-      detail: 'JaiClaw is Java 21 + Spring Boot 3.5. If you are committed to Python, Node, or Go, use the native ecosystem.',
+      detail: 'JaiClaw is Java 21 + Spring Boot 3.5.15 + Spring AI 1.1.7. If you are committed to Python, Node, or Go, use the native ecosystem.',
     },
     {
       label: 'You need full custom control over LLM orchestration',

@@ -55,12 +55,24 @@ export const features = [
     id: 'skills',
     title: 'Skills System',
     icon: 'bi-lightbulb',
-    description: '60+ bundled skills loaded from markdown with YAML frontmatter. Create custom skills or use the built-in library.',
+    description: '70+ bundled skills loaded from markdown with YAML frontmatter. Create custom skills or use the built-in library.',
     highlights: [
-      { label: '60+ Bundled Skills', detail: 'System admin to content generation' },
+      { label: '70+ Bundled Skills', detail: 'System admin to content generation' },
       { label: 'Markdown Format', detail: 'YAML frontmatter + markdown body' },
       { label: 'Custom Skills', detail: 'Add your own with simple markdown files' },
       { label: 'Skill Profiles', detail: 'Assign skill sets per use case' },
+    ],
+  },
+  {
+    id: 'scaffolding',
+    title: 'Project Scaffolding',
+    icon: 'bi-magic',
+    description: 'Spring-Initializr-class project generator. From a ~10-line YAML manifest to a complete runnable Maven project — via a Maven goal, a Spring Shell command, or a conversational skill that walks you through requirements.',
+    highlights: [
+      { label: '5 Archetypes', detail: 'gateway, embabel, camel, comprehensive, minimal' },
+      { label: '3 Entry Points', detail: 'Maven goal · Spring Shell · conversational skill' },
+      { label: '~10-line Manifest', detail: 'Name + description required; everything else has defaults' },
+      { label: 'Two Parent Modes', detail: 'standalone (spring-boot-starter-parent) or jaiclaw' },
     ],
   },
   {
@@ -79,12 +91,12 @@ export const features = [
     id: 'mcp',
     title: 'MCP Server Hosting',
     icon: 'bi-plug',
-    description: 'Expose JaiClaw tools as MCP endpoints for Claude Desktop, Cursor, and other LLM clients. Dedicated MCP servers for Discord, Slack, and cross-channel messaging.',
+    description: 'Expose JaiClaw tools as MCP endpoints for Claude Desktop, Cursor, VS Code, and other LLM clients. The McpToolProvider SPI is dogfooded by 22 in-repo implementations.',
     highlights: [
       { label: 'MCP Endpoints', detail: 'Standard Model Context Protocol' },
       { label: 'IDE Integration', detail: 'Claude Desktop, Cursor, VS Code' },
       { label: 'Channel MCP', detail: 'Discord, Slack, cross-channel servers' },
-      { label: '53 Tools', detail: 'Full tool suite via MCP' },
+      { label: '22 In-Repo Providers', detail: 'McpToolProvider SPI dogfooded across the codebase' },
     ],
   },
   {
@@ -103,9 +115,9 @@ export const features = [
     id: 'plugins',
     title: 'Plugin System',
     icon: 'bi-puzzle',
-    description: '14 lifecycle hooks — intercept before/after LLM calls, tool execution, message pipeline, session events, and context compaction.',
+    description: '22 lifecycle hooks — intercept before/after LLM calls, tool execution, message pipeline, session events, and context compaction.',
     highlights: [
-      { label: '14 Hooks', detail: 'Full lifecycle interception' },
+      { label: '22 Hooks', detail: 'Full lifecycle interception' },
       { label: 'LLM Hooks', detail: 'Before/after model calls' },
       { label: 'Tool Hooks', detail: 'Before/after tool execution' },
       { label: 'Pipeline Hooks', detail: 'Message and session events' },
@@ -266,5 +278,41 @@ export const features = [
       { label: 'REST + SSE + Actuator', detail: 'Full Spring Boot surface — live board events, board snapshots, metrics' },
       { label: 'Pluggable Stores', detail: 'YAML, H2, JDBC, Redis, Postgres backends; durable per-board transition journal' },
     ],
+  },
+];
+
+// A small curated set of bundled skills, surfaced on /features as a spotlight
+// below the main feature grid. The ascii-rendering entry is special-cased in
+// FeaturesView.jsx with a before/after code-block treatment.
+export const skillsSpotlight = [
+  {
+    id: 'ascii-rendering',
+    title: 'ascii-rendering',
+    icon: 'bi-bounding-box',
+    summary: 'Render clean Unicode boxes, diagrams, scatter plots, and tables via the ascii_box and ascii_render tools — instead of hand-drawing borders character-by-character.',
+  },
+  {
+    id: 'systematic-debugging',
+    title: 'systematic-debugging',
+    icon: 'bi-bug',
+    summary: 'Root-cause investigation methodology applied before fixes. Reproduce, isolate, hypothesize, instrument, verify — the agent works the discipline instead of guessing at edits.',
+  },
+  {
+    id: 'k8s-monitoring',
+    title: 'k8s-monitoring',
+    icon: 'bi-hdd-network',
+    summary: 'Kubernetes SRE assistant. Cluster health checks, pod log triage, resource pressure scans, and remediation suggestions, gated behind kubectl.',
+  },
+  {
+    id: 'kanban-orchestrator',
+    title: 'kanban-orchestrator',
+    icon: 'bi-kanban',
+    summary: 'Decompose a goal into kanban work items and route each card through agent-backed column processors. Pairs with the Kanban Task Boards feature for multi-agent coordination.',
+  },
+  {
+    id: 'web-research',
+    title: 'web-research',
+    icon: 'bi-search',
+    summary: 'Multi-source web research and synthesis. Fan out searches, fetch sources, reconcile contradictions, and produce a cited summary — the foundation under the research-assistant example.',
   },
 ];

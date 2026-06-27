@@ -28,7 +28,7 @@ const homeFeatures = [
   { icon: 'bi-chat-dots', title: '11 Channels', description: 'Telegram, Slack, Discord, Email, SMS, Signal, Teams, WhatsApp, Google Chat, LINE, Matrix. All support local dev mode.' },
   { icon: 'bi-cpu', title: '11 LLM Providers', description: 'Anthropic, OpenAI, Gemini, Ollama, Bedrock, and more. Swap with one env var.' },
   { icon: 'bi-tools', title: '38+ Tools', description: 'File editing, browser automation, Kubernetes monitoring, document analysis, and more.' },
-  { icon: 'bi-lightbulb', title: '60+ Skills', description: 'Pre-built capabilities from system admin to content generation, loaded from markdown.' },
+  { icon: 'bi-lightbulb', title: '70+ Skills', description: 'Pre-built capabilities from system admin to content generation, loaded from markdown.' },
   { icon: 'bi-building', title: 'Multi-Tenancy', description: 'JWT-based tenant isolation with per-tenant sessions, memory, skills, and billing.' },
   { icon: 'bi-diagram-3', title: 'Multi-Agent', description: 'GOAP planning via Embabel — deterministic action sequences with auto parallelism.' },
 ];
@@ -40,9 +40,9 @@ export default function HomeView() {
       <section className="hero-section">
         <div className="hero-content">
           <h1>The Java Framework for Building AI Assistants That Actually Ship</h1>
-          <p className="hero-subtitle">Java 21 + Spring Boot 3.5 + Spring AI</p>
+          <p className="hero-subtitle">Java 21 · Spring Boot 3.5.15 · Spring AI 1.1.7 · Embabel 0.3.5</p>
           <p className="hero-description">
-            Production-ready framework with 65+ Maven modules. Connect any LLM to 11 messaging channels — Telegram, Slack, Discord, Email, SMS, Signal, Teams, WhatsApp, Google Chat, LINE, and Matrix — with tools, skills, memory, and multi-agent planning built in.
+            Production-ready framework with 160 Maven modules and 31 Spring Boot starters. Connect any LLM to 11 messaging channels — Telegram, Slack, Discord, Email, SMS, Signal, Teams, WhatsApp, Google Chat, LINE, and Matrix — with tools, skills, memory, and multi-agent planning built in.
           </p>
           <div className="hero-buttons">
             <Link to="/docs" className="product-link-btn">
@@ -63,10 +63,11 @@ export default function HomeView() {
       {/* Stats Bar */}
       <section className="stats-bar">
         <div className="stats-bar-inner">
-          <StatCounter value="65+" label="Maven Modules" />
+          <StatCounter value="160" label="Maven Modules" />
+          <StatCounter value="31" label="Starters" />
           <StatCounter value="11" label="Channels" />
           <StatCounter value="11" label="LLM Providers" />
-          <StatCounter value="38+" label="Built-in Tools" />
+          <StatCounter value="42" label="Examples" />
         </div>
       </section>
 
@@ -98,6 +99,37 @@ export default function HomeView() {
               description={feature.description}
             />
           ))}
+        </div>
+      </section>
+
+      {/* Three Ways to Use JaiClaw */}
+      <section className="home-features-section">
+        <h2>Three Ways to Use JaiClaw</h2>
+        <p style={{ textAlign: 'center', color: '#555', maxWidth: 760, margin: '0 auto 30px' }}>
+          One framework. Every scale. Zero platform changes.
+        </p>
+        <div className="services-grid">
+          <Link to="/features" style={{ textDecoration: 'none', color: 'inherit' }}>
+            <FeatureCard
+              icon="bi-box-seam"
+              title="As an enterprise library"
+              description="Pull JaiClaw via the BOM, compose the Spring Boot starters you need, implement the SPIs for your business domain. Stable @Stable / @Experimental / @Internal markers across 20+ committed SPIs."
+            />
+          </Link>
+          <Link to="/features" style={{ textDecoration: 'none', color: 'inherit' }}>
+            <FeatureCard
+              icon="bi-building"
+              title="As a multi-tenant gateway"
+              description="Flip jaiclaw.tenant.mode=multi and the framework isolates sessions, memory, skills, secrets, and audit per tenant from a single codebase. Stateless gateway, horizontally scalable, Kubernetes-ready."
+            />
+          </Link>
+          <Link to="/docs" style={{ textDecoration: 'none', color: 'inherit' }}>
+            <FeatureCard
+              icon="bi-terminal"
+              title="As a single-binary assistant"
+              description="One curl line and a multi-channel agent runs on your laptop. Telegram, Slack, Discord, and 8 more with local dev modes that need no public endpoint."
+            />
+          </Link>
         </div>
       </section>
 

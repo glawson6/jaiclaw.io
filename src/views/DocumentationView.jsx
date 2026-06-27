@@ -29,7 +29,7 @@ const docLinks = [
   },
   {
     title: 'Examples',
-    description: '28 standalone Spring Boot examples covering scheduling, GOAP, documents, voice, and more.',
+    description: '42 standalone Spring Boot examples covering scheduling, GOAP, documents, voice, and more.',
     url: GITHUB_EXAMPLES_URL,
     icon: 'bi-code-square',
   },
