@@ -83,3 +83,6 @@ helm-values.yaml
 kubeconfig
 *.kubeconfig
 kube-config
+
+# Security planning docs (uncommitted)
+docs/SECURITY-UI-PLAN.md

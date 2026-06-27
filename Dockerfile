@@ -15,6 +15,21 @@ COPY . .
 
 RUN npm install
 
+# Vite inlines these JAICLAW_* env vars at build time (vite.config.js sets
+# envPrefix: 'JAICLAW_'). Defaults below mirror production. Override at build
+# time with --build-arg JAICLAW_X=Y per env. To leave a flag unset, pass an
+# empty string ("").
+ARG JAICLAW_CONTACT_API_URL=https://api-crm.taptech.net/leads
+ARG JAICLAW_CAPTCHA_URL=https://api-crm.taptech.net
+ARG JAICLAW_TOKEN_API_URL=https://api-crm.taptech.net
+ARG JAICLAW_FEATURE_PRICING=false
+ARG JAICLAW_FEATURE_SUBMISSION_TOKEN=true
+ENV JAICLAW_CONTACT_API_URL=$JAICLAW_CONTACT_API_URL \
+    JAICLAW_CAPTCHA_URL=$JAICLAW_CAPTCHA_URL \
+    JAICLAW_TOKEN_API_URL=$JAICLAW_TOKEN_API_URL \
+    JAICLAW_FEATURE_PRICING=$JAICLAW_FEATURE_PRICING \
+    JAICLAW_FEATURE_SUBMISSION_TOKEN=$JAICLAW_FEATURE_SUBMISSION_TOKEN
+
 # Build the application
 RUN npm run build
 
