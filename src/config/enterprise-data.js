@@ -48,6 +48,22 @@ export const productionPillars = [
     ],
   },
   {
+    id: 'compliance',
+    title: 'GDPR + HIPAA Compliance (0.9.3+)',
+    icon: 'bi-file-earmark-lock',
+    description: 'A jaiclaw-compliance module wires GDPR + HIPAA safeguards on demand. Compliance-capable framework, not a certified product — both regulations are properties of a deployment. One property (jaiclaw.compliance.profile) toggles a coherent bundle of protections.',
+    highlights: [
+      { label: 'LLM-Call Audit Trail', detail: 'Every model.inference.request records recipient, data categories, lawful basis, consent token — Art. 30 RoPA reconstructs from the stream' },
+      { label: 'BAA-Eligible Providers', detail: 'Bedrock, Azure OpenAI, Vertex AI, Ollama classified BAA-eligible by default; PHI tenant on non-BAA route triggers a warning' },
+      { label: 'Retention Enforcement', detail: 'Scheduled purge of transcripts + audit per per-tenant TTL — HIPAA §164.316(b)(2) 6-year audit floor supported' },
+      { label: 'HTTPS Startup Guard', detail: 'Refuses to start on a public bind without TLS when any compliance profile is active' },
+      { label: 'Data Subject Rights', detail: 'DataSubjectErasureSpi (Art. 17 cascade delete) + /api/gdpr/export/{id} (Art. 15, 20) shipped as Tier 2 SPIs' },
+      { label: 'PHI Redaction + AES-GCM', detail: 'PromptRedactor SPI masks PHI/PII before LLM dispatch; FieldEncryptor decorators encrypt transcripts + audit at rest' },
+      { label: 'Tamper-Evident Audit', detail: 'HashChainedAuditLogger stamps prevHash + chainHash on every event; verifyChain() reports the first break' },
+      { label: 'Governance SPIs (Tier 3)', detail: 'RopaGenerator, ObjectionService (Art. 21), AnomalyDetector, ProcessorMetadataExporter — auto-wired when profile is active' },
+    ],
+  },
+  {
     id: 'api-stability',
     title: 'API Stability Program',
     icon: 'bi-bookmark-check',

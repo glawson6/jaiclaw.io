@@ -133,6 +133,35 @@ export default function HomeView() {
         </div>
       </section>
 
+      {/* Compliance Callout */}
+      <section className="home-features-section">
+        <div style={{
+          maxWidth: 900,
+          margin: '0 auto',
+          padding: '28px 32px',
+          background: '#f9f9f9',
+          border: '1px solid #e5e5e5',
+          borderLeft: '4px solid #7851a9',
+          borderRadius: 6,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
+            <i className="bi bi-file-earmark-lock" style={{ fontSize: '1.6rem', color: '#7851a9' }}></i>
+            <h3 style={{ margin: 0 }}>New in 0.9.3 — GDPR + HIPAA compliance module</h3>
+          </div>
+          <p style={{ color: '#333', marginBottom: 12 }}>
+            One property (<code>jaiclaw.compliance.profile</code>) turns on a coherent
+            bundle of safeguards: LLM-call audit trail with Art. 30 fields, BAA-eligible
+            provider enforcement, retention purge, HTTPS startup guard, PHI redaction,
+            AES-GCM at-rest encryption, tamper-evident audit chain, and Art. 15 / 17 / 20
+            data subject rights. Compliance-<em>capable</em>, not certified — the
+            framework provides the raw material for a defensible deployment.
+          </p>
+          <Link to="/enterprise" className="product-link-btn" style={{ marginTop: 8 }}>
+            See the compliance capabilities
+          </Link>
+        </div>
+      </section>
+
       {/* About */}
       <section className="about-section">
         <h2>Built by TapTech Holdings</h2>
