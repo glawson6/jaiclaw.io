@@ -57,6 +57,20 @@
   font-size: 0.9rem;
 }
 
+.feature-screenshot {
+  margin: 0 0 24px;
+  text-align: center;
+}
+
+.feature-screenshot img {
+  max-width: 100%;
+  height: auto;
+  border: 1px solid #e5e5e5;
+  border-radius: 8px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+  background: #fff;
+}
+
 @media (max-width: 768px) {
   .feature-highlights {
     grid-template-columns: 1fr;

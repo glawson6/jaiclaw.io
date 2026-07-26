@@ -80,7 +80,7 @@ export const whenNotToChoose = {
   cases: [
     {
       label: 'You are not on the JVM',
-      detail: 'JaiClaw is Java 21 + Spring Boot 3.5.15 + Spring AI 1.1.7. If you are committed to Python, Node, or Go, use the native ecosystem.',
+      detail: 'JaiClaw is Java 21 + Spring Boot 4.1.0 + Spring AI 2.0.0. If you are committed to Python, Node, or Go, use the native ecosystem.',
     },
     {
       label: 'You need full custom control over LLM orchestration',

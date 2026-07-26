@@ -49,7 +49,7 @@ export const productionPillars = [
   },
   {
     id: 'compliance',
-    title: 'GDPR + HIPAA Compliance (0.9.3+)',
+    title: 'GDPR + HIPAA Compliance',
     icon: 'bi-file-earmark-lock',
     description: 'A jaiclaw-compliance module wires GDPR + HIPAA safeguards on demand. Compliance-capable framework, not a certified product — both regulations are properties of a deployment. One property (jaiclaw.compliance.profile) toggles a coherent bundle of protections.',
     highlights: [
@@ -67,12 +67,12 @@ export const productionPillars = [
     id: 'api-stability',
     title: 'API Stability Program',
     icon: 'bi-bookmark-check',
-    description: '@Stable / @Experimental / @Internal annotations mark the API surface. Know what you can depend on on the road to 1.0.',
+    description: '@Stable / @Experimental / @Internal annotations mark every SPI. As of 1.0, 20+ SPIs carry a compatibility guarantee — you know exactly what you can depend on.',
     highlights: [
-      { label: '@Stable', detail: 'Compatibility guarantee' },
-      { label: '@Experimental', detail: 'May change with notice' },
-      { label: '@Internal', detail: 'Do not depend on these' },
-      { label: 'Road to 1.0', detail: 'Published roadmap and stability commitments' },
+      { label: '@Stable', detail: 'Semver compatibility guarantee through the 1.x line' },
+      { label: '@Experimental', detail: 'Shipping, but may change with notice' },
+      { label: '@Internal', detail: 'Do not depend on these — subject to change without notice' },
+      { label: '1.0 GA', detail: 'First stable release — API contract locked in' },
     ],
   },
   {

@@ -34,8 +34,8 @@ export default function FeaturesView() {
       <div className="intro">
         <h2>Features</h2>
         <p>
-          JaiClaw is deeper than the feature list suggests. Built on Java 21, Spring Boot 3.5.15, Spring AI 1.1.7,
-          Embabel 0.3.5, and Apache Camel 4.18, it provides everything you need to ship production AI assistants.
+          JaiClaw is deeper than the feature list suggests. Built on Java 21, Spring Boot 4.1.0, Spring AI 2.0.0,
+          Embabel 2.0.0, and Apache Camel 4.21, it provides everything you need to ship production AI assistants.
         </p>
       </div>
 
@@ -48,6 +48,16 @@ export default function FeaturesView() {
             </h2>
             <p>{feature.description}</p>
           </div>
+          {feature.image && (
+            <div className="feature-screenshot">
+              <img
+                src={feature.image}
+                alt={feature.imageAlt || feature.title}
+                loading="lazy"
+                onError={(e) => { e.currentTarget.parentElement.style.display = 'none'; }}
+              />
+            </div>
+          )}
           <div className="feature-highlights">
             {feature.highlights.map((highlight) => (
               <div key={highlight.label} className="feature-highlight-item">
