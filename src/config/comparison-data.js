@@ -83,8 +83,8 @@ export const whenNotToChoose = {
       detail: 'JaiClaw is Java 21 + Spring Boot 4.1.0 + Spring AI 2.0.0. If you are committed to Python, Node, or Go, use the native ecosystem.',
     },
     {
-      label: 'You need full custom control over LLM orchestration',
-      detail: 'LangChain4j or raw Spring AI give you finer-grained primitives. JaiClaw trades some flexibility for productivity.',
+      label: 'You want to hand-build the agent loop from scratch',
+      detail: 'JaiClaw ships a production-ready loop with tenant-aware model routing, tool orchestration, and lifecycle hooks — but if you would rather assemble every iteration yourself against raw Spring AI ChatClient, JaiClaw will feel like too much scaffolding. (If you just want to customize the loop, JaiClaw exposes AgentLoopDelegate, JaiClawPlugin hooks, TenantChatModelFactory, and ChatModel decorators — the escape hatches are already there.)',
     },
     {
       label: 'You only need a single-tenant prototype',
