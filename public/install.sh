@@ -272,7 +272,10 @@ install_launcher() {
 
     # Check if running from repo
     local script_dir
-    script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    # When piped from curl, BASH_SOURCE[0] is unset. The ${…:-} default
+    # keeps set -u happy; cd/pwd then fail silently so script_dir stays empty
+    # (which correctly skips the "running from a repo checkout" branch below).
+    script_dir="$(cd "$(dirname "${BASH_SOURCE[0]:-}")" 2>/dev/null && pwd)" || script_dir=""
 
     if [[ -f "$script_dir/bin/jaiclaw" ]]; then
         # Running from repo — copy local file
@@ -298,7 +301,10 @@ install_jar() {
     header "Installing CLI JAR"
 
     local script_dir
-    script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    # When piped from curl, BASH_SOURCE[0] is unset. The ${…:-} default
+    # keeps set -u happy; cd/pwd then fail silently so script_dir stays empty
+    # (which correctly skips the "running from a repo checkout" branch below).
+    script_dir="$(cd "$(dirname "${BASH_SOURCE[0]:-}")" 2>/dev/null && pwd)" || script_dir=""
 
     # Check for locally built JAR (Spring Boot fat jar, classifier 'exec')
     local target_dir="$script_dir/apps/jaiclaw-cli/target"
