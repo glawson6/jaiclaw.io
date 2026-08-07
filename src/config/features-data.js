@@ -1,5 +1,19 @@
 export const features = [
   {
+    id: 'agentic-ai',
+    title: 'Agentic AI Runtime',
+    icon: 'bi-robot',
+    description: 'A Java runtime for the four capabilities that make an AI agentic: break tasks into steps, invoke tools, decide when the first path fails, and remember context. Built on the 8-module blueprint — purpose, prompt, LLM, tools, memory, orchestration, UI, evals — each block backed by inspectable JaiClaw code.',
+    highlights: [
+      { label: 'Agent Loop', detail: 'Tool-calling loop with context compaction, retries, and typed intermediate results' },
+      { label: 'Autonomy Spectrum', detail: 'Human-in-the-loop, human-on-the-loop, or fully autonomous — same runtime' },
+      { label: '8-Module Blueprint', detail: 'Every architectural decision mapped to a JaiClaw SPI or starter' },
+      { label: 'Multi-Agent Handoff', detail: 'GOAP planning via Embabel with A* search and auto parallelism' },
+      { label: 'Memory + Tools + Skills', detail: 'AgentMind memory, 38+ tools, 70+ skills — swap providers with one env var' },
+      { label: 'Test & Eval', detail: 'Agent evaluation framework for regression-testing agent behavior' },
+    ],
+  },
+  {
     id: 'channels',
     title: 'Messaging Channels',
     icon: 'bi-chat-dots',
@@ -89,14 +103,16 @@ export const features = [
   },
   {
     id: 'mcp',
-    title: 'MCP Server Hosting',
+    title: 'MCP: Host & Consume',
     icon: 'bi-plug',
-    description: 'Expose JaiClaw tools as MCP endpoints for Claude Desktop, Cursor, VS Code, and other LLM clients. The McpToolProvider SPI is dogfooded by 22 in-repo implementations.',
+    description: 'First-class Model Context Protocol support — expose any JaiClaw capability (a tool, a document repository, an agent) as a named MCP server mounted at /mcp/{serverName}, and consume external MCP servers from your agents. Two SPIs, six canonical integration patterns, and 22 in-repo providers dogfooding the surface.',
     highlights: [
-      { label: 'MCP Endpoints', detail: 'Standard Model Context Protocol' },
-      { label: 'IDE Integration', detail: 'Claude Desktop, Cursor, VS Code' },
-      { label: 'Channel MCP', detail: 'Discord, Slack, cross-channel servers' },
-      { label: '22 In-Repo Providers', detail: 'McpToolProvider SPI dogfooded across the codebase' },
+      { label: 'McpToolProvider SPI', detail: 'Interactive tools the LLM invokes — one server per Spring bean, tenant-aware' },
+      { label: 'McpResourceProvider SPI', detail: 'Read-only content (docs, config, datasets) the LLM lists and reads' },
+      { label: '6 Design Patterns', detail: 'Direct wrapper, composite service, MCP-to-agent, event-driven, hierarchical, local resource' },
+      { label: '22 In-Repo Providers', detail: 'docs, messaging, agentmind-memory, github (12 tools), calendar, kanban, pipeline, and more' },
+      { label: 'HTTP / SSE / stdio', detail: 'Three transports; HTTP by default, all share the same provider code' },
+      { label: 'Claude Desktop, Cursor, VS Code', detail: 'Any MCP client can browse and invoke tools via /mcp/{server}' },
     ],
   },
   {
