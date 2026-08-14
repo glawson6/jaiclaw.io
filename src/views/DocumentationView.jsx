@@ -75,7 +75,7 @@ const referenceDocs = [
   },
   {
     title: 'Production Deployment',
-    description: 'Kubernetes, Helm, secrets, observability, resource sizing — the operator playbook for 1.0.',
+    description: 'Kubernetes, Helm, secrets, observability, resource sizing — the operator playbook for 1.1.',
     url: `${GITHUB_DOCS_URL}/user/PRODUCTION-DEPLOYMENT.md`,
     icon: 'bi-hdd-network',
   },

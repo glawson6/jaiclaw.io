@@ -376,15 +376,6 @@ install_jar() {
     if ! curl -fsSL -o "$dest" "$url"; then
         rm -f "$dest"
         warn "CLI JAR not available on Nexus for version $JAICLAW_VERSION ($url)"
-        if [[ "$JAICLAW_VERSION" == "1.0.0" ]]; then
-            echo ""
-            echo "⚠  Known issue: jaiclaw-cli-1.0.0-exec.jar was lost during the"
-            echo "   Nexus deploy of 1.0.0 (Maven reported the 158 MB upload as"
-            echo "   succeeded, but Nexus did not retain it). The pom + thin jar"
-            echo "   are on Nexus, the fat jar is not. Because 1.0.0 is a release"
-            echo "   tag, the artifact will be republished under 1.0.1."
-            echo ""
-        fi
         fallback_to_source "$JAICLAW_VERSION"
         return $?
     fi

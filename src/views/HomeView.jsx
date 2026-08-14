@@ -5,27 +5,12 @@ import CodeBlock from '../components/CodeBlock.jsx';
 import { GITHUB_URL, GITHUB_DOCS_URL, TAPTECH_URL } from '../config/constants.js';
 import '../styles/hero.css';
 
-const MAVEN_SNIPPET = `<repositories>
-  <repository>
-    <id>taptech-releases</id>
-    <url>https://tooling.taptech.net/repository/maven-releases/</url>
-    <releases><enabled>true</enabled></releases>
-    <snapshots><enabled>false</enabled></snapshots>
-  </repository>
-  <repository>
-    <id>embabel-snapshots</id>
-    <url>https://repo.embabel.com/artifactory/libs-snapshot</url>
-    <snapshots><enabled>true</enabled></snapshots>
-    <releases><enabled>false</enabled></releases>
-  </repository>
-</repositories>
-
-<dependencyManagement>
+const MAVEN_SNIPPET = `<dependencyManagement>
   <dependencies>
     <dependency>
       <groupId>io.jaiclaw</groupId>
       <artifactId>jaiclaw-bom</artifactId>
-      <version>1.0.0</version>
+      <version>1.1.0</version>
       <type>pom</type>
       <scope>import</scope>
     </dependency>
@@ -37,13 +22,25 @@ const MAVEN_SNIPPET = `<repositories>
     <groupId>io.jaiclaw</groupId>
     <artifactId>jaiclaw-spring-boot-starter</artifactId>
   </dependency>
-</dependencies>`;
+</dependencies>
+
+<!-- Optional: TapTech Nexus as a secondary mirror. Central is the default. -->
+<!--
+<repositories>
+  <repository>
+    <id>taptech-releases</id>
+    <url>https://tooling.taptech.net/repository/maven-releases/</url>
+    <releases><enabled>true</enabled></releases>
+    <snapshots><enabled>false</enabled></snapshots>
+  </repository>
+</repositories>
+-->`;
 
 const homeFeatures = [
   { icon: 'bi-chat-dots', title: '11 Channels', description: 'Telegram, Slack, Discord, Email, SMS, Signal, Teams, WhatsApp, Google Chat, LINE, Matrix. All support local dev mode.' },
   { icon: 'bi-cpu', title: '11 LLM Providers', description: 'Anthropic, OpenAI, Gemini, Ollama, Bedrock, and more. Swap with one env var.' },
   { icon: 'bi-tools', title: '38+ Tools', description: 'File editing, browser automation, Kubernetes monitoring, document analysis, and more.' },
-  { icon: 'bi-bezier2', title: 'Pipelines + Studio', description: 'YAML, Java DSL, or a visual drag-and-drop React canvas — same runtime. Seven runnable pipeline examples ship with 1.0.' },
+  { icon: 'bi-bezier2', title: 'Pipelines + Studio', description: 'YAML, Java DSL, or a visual drag-and-drop React canvas — same runtime. Seven runnable pipeline examples ship with 1.1.' },
   { icon: 'bi-building', title: 'Multi-Tenancy', description: 'JWT-based tenant isolation with per-tenant sessions, memory, skills, and billing.' },
   { icon: 'bi-diagram-3', title: 'Agentic + Multi-Agent', description: 'Agents that plan, invoke tools, remember context, and hand off to specialists. GOAP planning via Embabel gives deterministic action sequences with auto parallelism.' },
   { icon: 'bi-plug', title: 'MCP: Host & Consume', description: 'Publish any JaiClaw tool as a Model Context Protocol server for Claude Desktop, Cursor, or any MCP client. 22 in-repo providers across 6 canonical patterns.' },
@@ -57,7 +54,7 @@ export default function HomeView() {
         <div className="hero-content">
           <h1>The Java Framework for Building AI Assistants That Actually Ship</h1>
           <div className="version-badge-row">
-            <span className="version-badge">1.0 · Stable release</span>
+            <span className="version-badge">1.1 · Stable release</span>
           </div>
           <p className="hero-subtitle">Java 21 · Spring Boot 4.1.0 · Spring AI 2.0.0 · Embabel 2.0.0 · Camel 4.21</p>
           <p className="hero-description">
@@ -156,8 +153,10 @@ export default function HomeView() {
         <CodeBlock code={MAVEN_SNIPPET} language="xml" />
         <p style={{ textAlign: 'center', color: '#666', fontSize: '0.9rem', maxWidth: 720, margin: '10px auto 0' }}>
           <i className="bi bi-info-circle" style={{ marginRight: 6, color: '#7851a9' }}></i>
-          1.0.0 ships to the TapTech Nexus (anonymous read — no credentials needed).
-          Maven Central publication is deferred until the Embabel 2.0.0 GA lands there.
+          1.1.0 is available on Maven Central. The TapTech Nexus mirror
+          (<code>tooling.taptech.net/repository/maven-releases</code>) is
+          maintained as an optional secondary source — see the commented block
+          in the snippet above.
         </p>
         <p style={{ textAlign: 'center', color: '#555', marginTop: 30 }}>
           Or install with a single command:
@@ -227,7 +226,7 @@ export default function HomeView() {
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
             <i className="bi bi-file-earmark-lock" style={{ fontSize: '1.6rem', color: '#7851a9' }}></i>
-            <h3 style={{ margin: 0 }}>GDPR + HIPAA compliance module — stable in 1.0</h3>
+            <h3 style={{ margin: 0 }}>GDPR + HIPAA compliance module — stable since 1.0</h3>
           </div>
           <p style={{ color: '#333', marginBottom: 12 }}>
             One property (<code>jaiclaw.compliance.profile</code>) turns on a coherent

@@ -193,7 +193,7 @@ export const features = [
     icon: 'bi-bezier2',
     image: '/images/pipeline-studio.png',
     imageAlt: 'JaiClaw Pipeline Studio — visual drag-and-drop pipeline builder',
-    description: 'Compose multi-stage workflows in YAML, in Java with a fluent .then(...) DSL, or visually in Pipeline Studio — same runtime either way. Trigger via REST, watch via Actuator, validated at startup, hookable across the lifecycle. Seven runnable pipeline examples shipped with 1.0.',
+    description: 'Compose multi-stage workflows in YAML, in Java with a fluent .then(...) DSL, or visually in Pipeline Studio — same runtime either way. Trigger via REST, watch via Actuator, validated at startup, hookable across the lifecycle. Seven runnable pipeline examples ship with 1.1.',
     highlights: [
       { label: 'Pipeline Studio (SPA)', detail: 'Visual drag-and-drop React canvas — author pipelines without writing YAML by hand' },
       { label: 'YAML Pipelines', detail: 'Declarative stages, {{input}} / {{stages.*}} / {{pipeline.*}} templates, validated at boot' },
