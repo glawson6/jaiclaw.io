@@ -21,31 +21,30 @@ def isDeployment(String env) {
 def readPomVersion() {
     // Single source of truth: the Maven pom. Never hard-code the version
     // in the pipeline. If the pom bumps, the pipeline follows automatically.
-    return sh(
-        script: "./mvnw -q -Dexec.executable=echo -Dexec.args='\${project.version}' --non-recursive exec:exec",
-        returnStdout: true
-    ).trim()
+    def v = ''
+    container('maven') {
+        v = sh(
+            script: "./mvnw -q -Dexec.executable=echo -Dexec.args='\${project.version}' --non-recursive exec:exec",
+            returnStdout: true
+        ).trim()
+    }
+    return v
 }
 
 def buildDockerImage() {
     echo "Building React app + docker image ${DOCKER_IMAGE}:${env.FINAL_DOCKER_TAG}"
 
-    // Primary path: jkube's k8s:build. This is what the pom is set up for
-    // (see the <docker> profile in pom.xml) and is the intended tool.
-    //
-    // Known caveat: jkube 1.16.2 fails on Docker Desktop 29.x with
-    // "failed to export image: NotFound: content digest ... not found"
-    // (see taptech-holdings-ui/ISSUES.md for the full write-up). On a real
-    // Linux Jenkins agent with a native containerd/docker daemon this is
-    // expected to work; if it ever regresses here, the recovery is:
-    //     BDIR=target/docker/${DOCKER_REGISTRY}/${IMAGE_NAME}/${env.POM_VERSION}/build
-    //     docker build --platform=linux/amd64 -t \$IMAGE:\$TAG -f \$BDIR/Dockerfile \$BDIR
-    sh """
-        ./mvnw clean package k8s:build -Pprod,docker \\
-            -Ddocker.image.tag=${env.FINAL_DOCKER_TAG} \\
-            -DskipTests \\
-            ${MAVEN_OPTS}
-    """
+    // jkube's k8s:build. Runs INSIDE the `maven` container of the pod-template;
+    // jkube shells out to the docker daemon via DOCKER_HOST=tcp://localhost:2375
+    // which the `dind` sibling container exposes.
+    container('maven') {
+        sh """
+            ./mvnw clean package k8s:build -Pprod,docker \\
+                -Ddocker.image.tag=${env.FINAL_DOCKER_TAG} \\
+                -DskipTests \\
+                ${MAVEN_OPTS}
+        """
+    }
 }
 
 def pushDockerImage() {
@@ -53,15 +52,17 @@ def pushDockerImage() {
 
     // Push via jkube too -- it already knows the image name/tag from the pom
     // + -Ddocker.image.tag override above, and reuses whatever docker
-    // credential the agent has for tooling.taptech.net:5000.
+    // credential the daemon has for tooling.taptech.net:5000.
     //
     // Deliberately do NOT push :latest for prod. GitOps commits an immutable
     // tag; :latest muddies rollback and Argo diffs.
-    sh """
-        ./mvnw k8s:push -Pdocker \\
-            -Ddocker.image.tag=${env.FINAL_DOCKER_TAG} \\
-            ${MAVEN_OPTS}
-    """
+    container('maven') {
+        sh """
+            ./mvnw k8s:push -Pdocker \\
+                -Ddocker.image.tag=${env.FINAL_DOCKER_TAG} \\
+                ${MAVEN_OPTS}
+        """
+    }
 }
 
 def bumpKustomizeImage() {
@@ -70,38 +71,139 @@ def bumpKustomizeImage() {
     // Nothing in this stage touches the target cluster.
     def overlayPath = "applications/jaiclaw-io/overlays/${params.ENVIRONMENT}"
 
-    sh """
-        set -e
-        rm -rf taptech-gitops
-        git clone --depth=1 https://\${GITOPS_TOKEN_USR}:\${GITOPS_TOKEN_PSW}@github.com/glawson6/taptech-gitops.git
-        cd taptech-gitops
+    // The maven container has git but not kustomize. Install a pinned release
+    // to a local dir so we're not root-writing the image, and add it to PATH
+    // for this shell invocation only.
+    container('maven') {
+        sh """
+            set -e
+            KUSTOMIZE_VERSION=5.4.3
+            if [ ! -x ./bin/kustomize ]; then
+                mkdir -p ./bin
+                curl -sSL "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv\${KUSTOMIZE_VERSION}/kustomize_v\${KUSTOMIZE_VERSION}_linux_amd64.tar.gz" \\
+                    | tar -xz -C ./bin
+                chmod +x ./bin/kustomize
+            fi
+            export PATH=\$PWD/bin:\$PATH
 
-        git config user.email 'jenkins@taptech.net'
-        git config user.name  'jenkins-jaiclaw-io'
+            rm -rf taptech-gitops
+            git clone --depth=1 https://\${GITOPS_TOKEN_USR}:\${GITOPS_TOKEN_PSW}@github.com/glawson6/taptech-gitops.git
+            cd taptech-gitops
 
-        cd ${overlayPath}
-        kustomize edit set image ${DOCKER_IMAGE}=${DOCKER_IMAGE}:${env.FINAL_DOCKER_TAG}
-        cd -
+            git config user.email 'jenkins@taptech.net'
+            git config user.name  'jenkins-jaiclaw-io'
 
-        # If nothing changed (identical tag), no-op cleanly.
-        if git diff --quiet; then
-            echo 'no image change; skipping commit'
-            exit 0
-        fi
+            cd ${overlayPath}
+            kustomize edit set image ${DOCKER_IMAGE}=${DOCKER_IMAGE}:${env.FINAL_DOCKER_TAG}
+            cd -
 
-        git add ${overlayPath}/kustomization.yaml
-        git commit -m 'jaiclaw-io ${params.ENVIRONMENT}: ${env.FINAL_DOCKER_TAG}
+            # If nothing changed (identical tag), no-op cleanly.
+            if git diff --quiet; then
+                echo 'no image change; skipping commit'
+                exit 0
+            fi
+
+            git add ${overlayPath}/kustomization.yaml
+            git commit -m 'jaiclaw-io ${params.ENVIRONMENT}: ${env.FINAL_DOCKER_TAG}
 
 Auto-committed by Jenkins build #${env.BUILD_NUMBER}.
 Overlay: ${overlayPath}
 Image:   ${DOCKER_IMAGE}:${env.FINAL_DOCKER_TAG}
 Source:  ${env.GIT_URL}@${env.GIT_COMMIT}'
-        git push origin main
-    """
+            git push origin main
+        """
+    }
 }
 
+// Pod template used for every build of this pipeline. Kept inline (not as a
+// PodTemplate CR on the cluster) so each app owns its own toolchain -- no
+// mgmt-cluster changes needed to bump image versions.
+//
+// Containers:
+//   * jnlp    -- the Jenkins remoting agent. Every pod-template needs one.
+//   * maven   -- JDK 21 + Maven + git. Runs everything Maven-related. The
+//                frontend-maven-plugin downloads Node 18.20.4 + npm 10.8.2 into
+//                target/node on the first `mvn package` invocation; not
+//                cached across builds by design (workspace wiped each run).
+//   * docker  -- docker CLI. Talks to the sibling `dind` container over
+//                tcp://localhost:2375 (shared pod network). jkube's
+//                k8s:build/push runs here via `container('docker')`.
+//   * dind    -- privileged Docker-in-Docker daemon. Fresh per build; no
+//                cross-build leakage. Container tears down when the pod does.
+//
+// The dind container needs privileged: true. The jenkins-agents namespace
+// must allow that -- typically by not enforcing the K8s "restricted" Pod
+// Security Standard. Verify with:
+//   kubectl get ns jenkins-agents -o jsonpath='{.metadata.labels}'
+def POD_YAML = '''
+apiVersion: v1
+kind: Pod
+spec:
+  containers:
+    - name: jnlp
+      image: jenkins/inbound-agent:latest
+      resources:
+        requests: { cpu: "200m", memory: "512Mi" }
+        limits:   { cpu: "1",    memory: "1Gi" }
+    - name: maven
+      image: maven:3.9-eclipse-temurin-21
+      command: [ "sleep" ]
+      args:    [ "infinity" ]
+      env:
+        - name: DOCKER_HOST
+          value: tcp://localhost:2375
+      resources:
+        requests: { cpu: "500m", memory: "1Gi" }
+        limits:   { cpu: "2",    memory: "3Gi" }
+      volumeMounts:
+        - name: workspace-volume
+          mountPath: /home/jenkins/agent
+    - name: docker
+      image: docker:27-cli
+      command: [ "sleep" ]
+      args:    [ "infinity" ]
+      env:
+        - name: DOCKER_HOST
+          value: tcp://localhost:2375
+      resources:
+        requests: { cpu: "100m", memory: "128Mi" }
+        limits:   { cpu: "500m", memory: "512Mi" }
+      volumeMounts:
+        - name: workspace-volume
+          mountPath: /home/jenkins/agent
+    - name: dind
+      image: docker:27-dind
+      securityContext:
+        privileged: true
+      # --insecure-registry so `docker push` accepts the plain-HTTP
+      # tooling.taptech.net:5000 without TLS. Remove once that registry
+      # is fronted by HTTPS.
+      args:
+        - "--host=tcp://0.0.0.0:2375"
+        - "--insecure-registry=tooling.taptech.net:5000"
+      env:
+        - name: DOCKER_TLS_CERTDIR
+          value: ""
+      resources:
+        requests: { cpu: "500m", memory: "1Gi" }
+        limits:   { cpu: "2",    memory: "3Gi" }
+      volumeMounts:
+        - name: docker-graph
+          mountPath: /var/lib/docker
+  volumes:
+    - name: workspace-volume
+      emptyDir: {}
+    - name: docker-graph
+      emptyDir: {}
+'''
+
 pipeline {
-    agent any
+    agent {
+        kubernetes {
+            yaml POD_YAML
+            defaultContainer 'maven'
+        }
+    }
 
     parameters {
         choice(
@@ -235,12 +337,13 @@ pipeline {
         }
     }
 
-    post {
-        always {
-            sh 'docker image prune -f || true'
-        }
-        cleanup {
-            cleanWs()
-        }
-    }
+    // No post {} block:
+    //   * The dind container is torn down when the agent pod ends, so there
+    //     is no long-lived docker cache that would need pruning.
+    //   * Jenkins deletes the agent pod (and its emptyDir workspace) when
+    //     the build finishes -- no cleanWs step required, and the workspace-
+    //     cleanup plugin is not installed on this controller.
+    //   * The old Jenkinsfile's `post { always { sh '...' } }` fired outside
+    //     a node context and blew up with "Required context class hudson.FilePath
+    //     is missing" -- explicitly not repeating that mistake here.
 }
