@@ -1,178 +1,250 @@
 #!/usr/bin/env groovy
+//
+// GitOps-flavored pipeline for jaiclaw.io.
+//
+// Old flow: build image  ->  helm upgrade against a live cluster (imperative).
+// New flow: build image  ->  git commit + push a tag bump to taptech-gitops.
+//           ArgoCD on the mgmt cluster picks up the commit and syncs
+//           applications/jaiclaw-io/overlays/prod/ to apps-prod.
+//
+// Two immediate consequences vs the previous Jenkinsfile:
+//   1. Jenkins never talks to the target cluster. No kubeconfig credential.
+//   2. Deploys are auditable via git log of the taptech-gitops repo.
+//
+// Rollback = `git revert <sha>` in taptech-gitops. No `helm rollback`.
+//
 
-@groovy.transform.Field
-def DEPLOY_YES = 'yes'
-
-def executeHelmAction(String action, String chartPath, String releaseName, String namespace, String valuesFile) {
-    switch (action) {
-        case 'install':
-            return """
-                helm install ${releaseName} ${chartPath} \\
-                    --namespace ${namespace} \\
-                    --values helm-values.yaml \\
-                    --values ${valuesFile} \\
-                    --wait --timeout=10m
-            """
-        case 'upgrade':
-            return """
-                helm upgrade --install ${releaseName} ${chartPath} \\
-                    --namespace ${namespace} \\
-                    --values helm-values.yaml \\
-                    --values ${valuesFile} \\
-                    --wait --timeout=10m
-            """
-        case 'rollback':
-            return """
-                echo "Rolling back to previous version..."
-                helm rollback ${releaseName} \\
-                    --namespace ${namespace}
-            """
-        default:
-            error("Unknown Helm action: ${action}")
-    }
+def isDeployment(String env) {
+    return env in ['dev', 'staging', 'prod']
 }
 
-def verifyDeployment(String namespace, String releaseName) {
-    sh """
-        export KUBECONFIG=${KUBECONFIG}
-
-        # Wait for deployment to be ready
-        kubectl wait --for=condition=available --timeout=300s \\
-            deployment/jaiclaw-io -n ${namespace} || true
-
-        # Check pod status
-        kubectl get pods -n ${namespace} -l app.kubernetes.io/name=jaiclaw-io
-
-        # Get service information
-        kubectl get services -n ${namespace} -l app.kubernetes.io/name=jaiclaw-io
-
-        # Describe deployment for troubleshooting
-        kubectl describe deployment jaiclaw-io -n ${namespace}
-
-        # Check Helm release status
-        helm status ${releaseName} -n ${namespace}
-    """
+def readPomVersion() {
+    // Single source of truth: the Maven pom. Never hard-code the version
+    // in the pipeline. If the pom bumps, the pipeline follows automatically.
+    def v = ''
+    container('maven') {
+        v = sh(
+            script: "./mvnw -q -Dexec.executable=echo -Dexec.args='\${project.version}' --non-recursive exec:exec",
+            returnStdout: true
+        ).trim()
+    }
+    return v
 }
 
 def buildDockerImage() {
-    echo 'Building React application with Maven and JKube...'
+    echo "Building React app + docker image ${DOCKER_IMAGE}:${env.FINAL_DOCKER_TAG}"
 
-    sh """
-        ./mvnw clean package -Pprod,docker \\
-            -Ddocker.image.tag=${env.FINAL_DOCKER_TAG} \\
-            -DskipTests=false \\
-            ${MAVEN_OPTS}
-    """
+    // jkube's k8s:build. Runs INSIDE the `maven` container of the pod-template;
+    // jkube shells out to the docker daemon via DOCKER_HOST=tcp://localhost:2375
+    // which the `dind` sibling container exposes.
+    container('maven') {
+        sh """
+            ./mvnw clean package k8s:build -Pprod,docker \\
+                -Ddocker.image.tag=${env.FINAL_DOCKER_TAG} \\
+                -DskipTests \\
+                ${MAVEN_OPTS}
+        """
+    }
 }
 
 def pushDockerImage() {
-    echo 'Pushing Docker image to registry...'
+    echo "Pushing ${DOCKER_IMAGE}:${env.FINAL_DOCKER_TAG}"
 
-    // Tag image with additional tags
-    sh """
-        docker tag ${DOCKER_IMAGE}:${env.FINAL_DOCKER_TAG} ${DOCKER_IMAGE}:latest
-        docker tag ${DOCKER_IMAGE}:${env.FINAL_DOCKER_TAG} ${DOCKER_IMAGE}:${params.ENVIRONMENT}
-    """
-
-    // Push to registry
-    sh """
-        docker push ${DOCKER_IMAGE}:${env.FINAL_DOCKER_TAG}
-        docker push ${DOCKER_IMAGE}:latest
-        docker push ${DOCKER_IMAGE}:${params.ENVIRONMENT}
-    """
+    // Push via jkube too -- it already knows the image name/tag from the pom
+    // + -Ddocker.image.tag override above, and reuses whatever docker
+    // credential the daemon has for tooling.taptech.net:5000.
+    //
+    // Deliberately do NOT push :latest for prod. GitOps commits an immutable
+    // tag; :latest muddies rollback and Argo diffs.
+    container('maven') {
+        sh """
+            ./mvnw k8s:push -Pdocker \\
+                -Ddocker.image.tag=${env.FINAL_DOCKER_TAG} \\
+                ${MAVEN_OPTS}
+        """
+    }
 }
 
-def deployToKubernetes() {
-    def releaseName = "jaiclaw-io-${params.ENVIRONMENT}"
-    def valuesFile = "${HELM_CHART_PATH}/values-${params.ENVIRONMENT}.yaml"
+def bumpKustomizeImage() {
+    // Clone taptech-gitops, edit the overlay's image tag, commit, push.
+    // ArgoCD polls the repo (default 3 min) and syncs the change to apps-prod.
+    // Nothing in this stage touches the target cluster.
+    def overlayPath = "applications/jaiclaw-io/overlays/${params.ENVIRONMENT}"
 
-    echo "Deploying to Kubernetes environment: ${params.ENVIRONMENT}"
+    // The maven container has git but not kustomize. Install a pinned release
+    // to a local dir so we're not root-writing the image, and add it to PATH
+    // for this shell invocation only.
+    container('maven') {
+        sh """
+            set -e
+            KUSTOMIZE_VERSION=5.4.3
+            if [ ! -x ./bin/kustomize ]; then
+                mkdir -p ./bin
+                curl -sSL "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv\${KUSTOMIZE_VERSION}/kustomize_v\${KUSTOMIZE_VERSION}_linux_amd64.tar.gz" \\
+                    | tar -xz -C ./bin
+                chmod +x ./bin/kustomize
+            fi
+            export PATH=\$PWD/bin:\$PATH
 
-    // Verify Helm chart exists
-    sh """
-        if [ ! -d "${HELM_CHART_PATH}" ]; then
-            echo "ERROR: Helm chart not found at ${HELM_CHART_PATH}"
-            exit 1
-        fi
+            rm -rf taptech-gitops
+            git clone --depth=1 https://\${GITOPS_TOKEN_USR}:\${GITOPS_TOKEN_PSW}@github.com/glawson6/taptech-gitops.git
+            cd taptech-gitops
 
-        echo "Using Helm chart at: ${HELM_CHART_PATH}"
-        helm lint ${HELM_CHART_PATH}
-    """
+            git config user.email 'jenkins@taptech.net'
+            git config user.name  'jenkins-jaiclaw-io'
 
-    // Set Helm values based on environment
-    def helmValues = """
-        image.repository=${DOCKER_IMAGE}
-        image.tag=${env.FINAL_DOCKER_TAG}
-        environment=${params.ENVIRONMENT}
-        namespace=${env.TARGET_NAMESPACE}
-    """
+            cd ${overlayPath}
+            kustomize edit set image ${DOCKER_IMAGE}=${DOCKER_IMAGE}:${env.FINAL_DOCKER_TAG}
+            cd -
 
-    writeFile file: 'helm-values.yaml', text: helmValues
+            # If nothing changed (identical tag), no-op cleanly.
+            if git diff --quiet; then
+                echo 'no image change; skipping commit'
+                exit 0
+            fi
 
-    // Execute Helm deployment
-    sh """
-        export KUBECONFIG=${KUBECONFIG}
+            git add ${overlayPath}/kustomization.yaml
+            git commit -m 'jaiclaw-io ${params.ENVIRONMENT}: ${env.FINAL_DOCKER_TAG}
 
-        # Ensure namespace exists
-        kubectl create namespace ${env.TARGET_NAMESPACE} --dry-run=client -o yaml | kubectl apply -f -
-
-        # Execute Helm command based on action
-        ${executeHelmAction(params.HELM_ACTION, HELM_CHART_PATH, releaseName, env.TARGET_NAMESPACE, valuesFile)}
-
-        # Verify deployment
-        kubectl get pods -n ${env.TARGET_NAMESPACE} -l app.kubernetes.io/name=jaiclaw-io
-        kubectl get services -n ${env.TARGET_NAMESPACE} -l app.kubernetes.io/name=jaiclaw-io
-    """
+Auto-committed by Jenkins build #${env.BUILD_NUMBER}.
+Overlay: ${overlayPath}
+Image:   ${DOCKER_IMAGE}:${env.FINAL_DOCKER_TAG}
+Source:  ${env.GIT_URL}@${env.GIT_COMMIT}'
+            git push origin main
+        """
+    }
 }
+
+// Pod template used for every build of this pipeline. Kept inline (not as a
+// PodTemplate CR on the cluster) so each app owns its own toolchain -- no
+// mgmt-cluster changes needed to bump image versions.
+//
+// Containers:
+//   * jnlp    -- the Jenkins remoting agent. Every pod-template needs one.
+//   * maven   -- JDK 21 + Maven + git. Runs everything Maven-related. The
+//                frontend-maven-plugin downloads Node 18.20.4 + npm 10.8.2 into
+//                target/node on the first `mvn package` invocation; not
+//                cached across builds by design (workspace wiped each run).
+//   * docker  -- docker CLI. Talks to the sibling `dind` container over
+//                tcp://localhost:2375 (shared pod network). jkube's
+//                k8s:build/push runs here via `container('docker')`.
+//   * dind    -- privileged Docker-in-Docker daemon. Fresh per build; no
+//                cross-build leakage. Container tears down when the pod does.
+//
+// The dind container needs privileged: true. The jenkins-agents namespace
+// must allow that -- typically by not enforcing the K8s "restricted" Pod
+// Security Standard. Verify with:
+//   kubectl get ns jenkins-agents -o jsonpath='{.metadata.labels}'
+def POD_YAML = '''
+apiVersion: v1
+kind: Pod
+spec:
+  containers:
+    - name: jnlp
+      image: jenkins/inbound-agent:latest
+      resources:
+        requests: { cpu: "200m", memory: "512Mi" }
+        limits:   { cpu: "1",    memory: "1Gi" }
+    - name: maven
+      image: maven:3.9-eclipse-temurin-21
+      command: [ "sleep" ]
+      args:    [ "infinity" ]
+      env:
+        - name: DOCKER_HOST
+          value: tcp://localhost:2375
+      resources:
+        requests: { cpu: "500m", memory: "1Gi" }
+        limits:   { cpu: "2",    memory: "3Gi" }
+      volumeMounts:
+        - name: workspace-volume
+          mountPath: /home/jenkins/agent
+    - name: docker
+      image: docker:27-cli
+      command: [ "sleep" ]
+      args:    [ "infinity" ]
+      env:
+        - name: DOCKER_HOST
+          value: tcp://localhost:2375
+      resources:
+        requests: { cpu: "100m", memory: "128Mi" }
+        limits:   { cpu: "500m", memory: "512Mi" }
+      volumeMounts:
+        - name: workspace-volume
+          mountPath: /home/jenkins/agent
+    - name: dind
+      image: docker:27-dind
+      securityContext:
+        privileged: true
+      # --insecure-registry so `docker push` accepts the plain-HTTP
+      # tooling.taptech.net:5000 without TLS. Remove once that registry
+      # is fronted by HTTPS.
+      args:
+        - "--host=tcp://0.0.0.0:2375"
+        - "--insecure-registry=tooling.taptech.net:5000"
+      env:
+        - name: DOCKER_TLS_CERTDIR
+          value: ""
+      resources:
+        requests: { cpu: "500m", memory: "1Gi" }
+        limits:   { cpu: "2",    memory: "3Gi" }
+      volumeMounts:
+        - name: docker-graph
+          mountPath: /var/lib/docker
+  volumes:
+    - name: workspace-volume
+      emptyDir: {}
+    - name: docker-graph
+      emptyDir: {}
+'''
 
 pipeline {
-    agent any
+    agent {
+        kubernetes {
+            yaml POD_YAML
+            defaultContainer 'maven'
+        }
+    }
 
     parameters {
         choice(
-            name: 'DEPLOY_TO_K8S',
-            choices: ['no', 'yes'],
-            description: 'Deploy to Kubernetes cluster after build?'
-        )
-        choice(
             name: 'ENVIRONMENT',
-            choices: ['dev', 'staging', 'prod'],
-            description: 'Target environment for deployment'
+            choices: ['prod', 'staging', 'dev'],
+            description: 'Target overlay in taptech-gitops (applications/jaiclaw-io/overlays/<env>)'
+        )
+        booleanParam(
+            name: 'PUSH_IMAGE',
+            defaultValue: true,
+            description: 'Push the built image to the registry. Uncheck for a dry-run local build (skips k8s:push).'
         )
         choice(
-            name: 'HELM_ACTION',
-            choices: ['upgrade', 'install', 'rollback'],
-            description: 'Helm deployment action'
+            name: 'DEPLOY_VIA_GITOPS',
+            choices: ['no', 'yes'],
+            description: 'Bump the tag in taptech-gitops so ArgoCD syncs? Requires PUSH_IMAGE=true. (no = build [+push] only)'
         )
         string(
             name: 'DOCKER_TAG',
-            defaultValue: 'latest',
-            description: 'Docker image tag (defaults to latest)'
+            defaultValue: '',
+            description: 'Override docker tag. Empty => <pom-version>-<YYYYMMDD-HHMMSS>-<sha7>'
         )
     }
 
     environment {
-        // Docker configuration
         DOCKER_REGISTRY = 'tooling.taptech.net:5000'
-        IMAGE_NAME = 'jaiclaw-io'
-        DOCKER_IMAGE = "${DOCKER_REGISTRY}/${IMAGE_NAME}"
+        IMAGE_NAME      = 'jaiclaw-io'
+        DOCKER_IMAGE    = "${DOCKER_REGISTRY}/${IMAGE_NAME}"
+        MAVEN_OPTS      = '-Dmaven.repo.local=.m2/repository'
+        NODE_VERSION    = '18.20.4'
 
-        // Build configuration
-        MAVEN_OPTS = '-Dmaven.repo.local=.m2/repository'
-        NODE_VERSION = '18.20.4'
-
-        // Kubernetes configuration
-        KUBECONFIG = credentials('kubeconfig-file')
-        HELM_CHART_PATH = './deployment/helm/jaiclaw-io'
-
-        // Environment-specific namespaces
-        DEV_NAMESPACE = 'jaiclaw-dev'
-        STAGING_NAMESPACE = 'jaiclaw-staging'
-        PROD_NAMESPACE = 'default'
+        // GitHub PAT with write access to taptech-gitops. Provisioned by ESO
+        // from 1Password vault (item `gitops-repo`, fields username+password)
+        // into the K8s Secret `gitops-repo` in the jenkins-agents namespace.
+        // Jenkins reads it via the kubernetes-credentials-provider plugin's
+        // Secret-to-Credential mirroring (matches Secret name = credential id).
+        GITOPS_TOKEN = credentials('gitops-repo')
     }
 
     options {
-        buildDiscarder(logRotator(numToKeepStr: '10'))
+        buildDiscarder(logRotator(numToKeepStr: '20'))
         timeout(time: 30, unit: 'MINUTES')
         skipStagesAfterUnstable()
         disableConcurrentBuilds()
@@ -184,134 +256,94 @@ pipeline {
                 script {
                     cleanWs()
                     checkout scm
-
                     currentBuild.displayName = "#${BUILD_NUMBER}-${params.ENVIRONMENT}"
-                    if (params.DEPLOY_TO_K8S == DEPLOY_YES) {
+                    if (params.DEPLOY_VIA_GITOPS == 'yes') {
                         currentBuild.displayName += '-deploy'
                     }
                 }
             }
         }
 
-        stage('Setup Environment') {
+        stage('Compute Tag') {
             steps {
                 script {
-                    env.FINAL_DOCKER_TAG = params.DOCKER_TAG == 'latest' ?
-                        "${env.BUILD_NUMBER}-${env.GIT_COMMIT.take(7)}" : params.DOCKER_TAG
+                    // Single source of truth for the project version = pom.xml.
+                    // Never hard-code it here.
+                    env.POM_VERSION = readPomVersion()
+                    echo "Pom version: ${env.POM_VERSION}"
 
-                    switch (params.ENVIRONMENT) {
-                        case 'dev':
-                            env.TARGET_NAMESPACE = env.DEV_NAMESPACE
-                            break
-                        case 'staging':
-                            env.TARGET_NAMESPACE = env.STAGING_NAMESPACE
-                            break
-                        case 'prod':
-                            env.TARGET_NAMESPACE = env.PROD_NAMESPACE
-                            break
-                        default:
-                            env.TARGET_NAMESPACE = env.DEV_NAMESPACE
+                    // Immutable tag. Never 'latest'. Never overwritable.
+                    // Format: <pom-version>-<UTC timestamp>-<git sha7>. Encodes
+                    // "what code" (pom) + "when built" (ts) + "which commit" (sha)
+                    // so an image tag alone tells the full provenance story.
+                    if (params.DOCKER_TAG?.trim()) {
+                        env.FINAL_DOCKER_TAG = params.DOCKER_TAG.trim()
+                    } else {
+                        def ts = sh(script: "date -u +%Y%m%d-%H%M%S", returnStdout: true).trim()
+                        env.FINAL_DOCKER_TAG = "${env.POM_VERSION}-${ts}-${env.GIT_COMMIT.take(7)}"
                     }
-
-                    echo "Building image: ${DOCKER_IMAGE}:${env.FINAL_DOCKER_TAG}"
-                    echo "Target environment: ${params.ENVIRONMENT}"
-                    echo "Target namespace: ${env.TARGET_NAMESPACE}"
+                    echo "Docker tag: ${DOCKER_IMAGE}:${env.FINAL_DOCKER_TAG}"
+                    echo "Target overlay: applications/jaiclaw-io/overlays/${params.ENVIRONMENT}"
                 }
             }
         }
 
-        stage('Build Application') {
+        stage('Validate') {
             steps {
                 script {
-                    buildDockerImage()
-                }
-            }
-            post {
-                always {
-                    archiveArtifacts artifacts: 'target/*.tar.gz,target/*.zip', allowEmptyArchive: true
+                    // A GitOps deploy without a push would point ArgoCD at an
+                    // image tag that doesn't exist in the registry -- catch it
+                    // here, not 5 minutes into a failing rollout.
+                    if (params.DEPLOY_VIA_GITOPS == 'yes' && !params.PUSH_IMAGE) {
+                        error 'DEPLOY_VIA_GITOPS=yes requires PUSH_IMAGE=true; the tag must exist in the registry before ArgoCD can pull it.'
+                    }
                 }
             }
         }
 
-        stage('Docker Image Info') {
-            steps {
-                script {
-                    echo 'Verifying Docker image...'
-                    sh '''
-                        docker images | grep ${IMAGE_NAME} || echo "No images found yet"
-                        docker image inspect ${DOCKER_IMAGE}:${FINAL_DOCKER_TAG} || echo "Image not found"
-                    '''
-                }
-            }
+        stage('Build Image') {
+            steps { script { buildDockerImage() } }
         }
 
-        stage('Push to Registry') {
-            when {
-                anyOf {
-                    branch 'main'
-                    branch 'develop'
-                    expression { params.DEPLOY_TO_K8S == DEPLOY_YES }
-                }
-            }
-            steps {
-                script {
-                    pushDockerImage()
-                }
-            }
+        stage('Push Image') {
+            when { expression { params.PUSH_IMAGE } }
+            steps { script { pushDockerImage() } }
         }
 
-        stage('Deploy to Kubernetes') {
-            when {
-                expression { params.DEPLOY_TO_K8S == DEPLOY_YES }
-            }
-            steps {
-                script {
-                    deployToKubernetes()
-                }
-            }
-            post {
-                always {
-                    sh 'rm -f helm-values.yaml'
-                }
-                success {
-                    echo "Successfully deployed to ${params.ENVIRONMENT} environment"
-                }
-                failure {
-                    echo "Deployment to ${params.ENVIRONMENT} environment failed"
-                }
-            }
+        stage('Bump Kustomize (GitOps)') {
+            when { expression { params.DEPLOY_VIA_GITOPS == 'yes' } }
+            steps { script { bumpKustomizeImage() } }
         }
 
-        stage('Health Check') {
-            when {
-                expression { params.DEPLOY_TO_K8S == DEPLOY_YES }
-            }
+        stage('Result') {
             steps {
                 script {
-                    def releaseName = "jaiclaw-io-${params.ENVIRONMENT}"
-                    echo 'Performing health check on deployed application...'
-                    verifyDeployment(env.TARGET_NAMESPACE, releaseName)
+                    if (params.DEPLOY_VIA_GITOPS == 'yes') {
+                        echo """
+                          |------------------------------------------------------------------------
+                          |  Built + pushed ${DOCKER_IMAGE}:${env.FINAL_DOCKER_TAG}
+                          |  Committed image bump to taptech-gitops.
+                          |  ArgoCD Application: jaiclaw-io-${params.ENVIRONMENT}
+                          |  Watch: https://argocd.taptech.net/applications/argocd/jaiclaw-io-${params.ENVIRONMENT}
+                          |------------------------------------------------------------------------
+                        """.stripMargin()
+                    } else if (params.PUSH_IMAGE) {
+                        echo "Built + pushed ${DOCKER_IMAGE}:${env.FINAL_DOCKER_TAG}. No GitOps deploy requested."
+                    } else {
+                        echo "Built ${DOCKER_IMAGE}:${env.FINAL_DOCKER_TAG} locally. Not pushed. (dry-run)"
+                    }
                 }
             }
         }
     }
 
-    post {
-        always {
-            echo "Pipeline completed for ${params.ENVIRONMENT} environment"
-            sh '''
-                docker image prune -f || true
-                docker system df || true
-            '''
-        }
-        success {
-            echo 'Pipeline completed successfully!'
-        }
-        failure {
-            echo 'Pipeline failed!'
-        }
-        cleanup {
-            cleanWs()
-        }
-    }
+    // No post {} block:
+    //   * The dind container is torn down when the agent pod ends, so there
+    //     is no long-lived docker cache that would need pruning.
+    //   * Jenkins deletes the agent pod (and its emptyDir workspace) when
+    //     the build finishes -- no cleanWs step required, and the workspace-
+    //     cleanup plugin is not installed on this controller.
+    //   * The old Jenkinsfile's `post { always { sh '...' } }` fired outside
+    //     a node context and blew up with "Required context class hudson.FilePath
+    //     is missing" -- explicitly not repeating that mistake here.
 }
