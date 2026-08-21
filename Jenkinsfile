@@ -254,8 +254,13 @@ pipeline {
         stage('Checkout') {
             steps {
                 script {
-                    cleanWs()
-                    checkout scm
+                    // No cleanWs() / checkout scm here:
+                    //   * Declarative pipeline already ran "Declarative: Checkout SCM"
+                    //     before the first stage. Repeating checkout would clone twice.
+                    //   * The agent pod's workspace is an emptyDir volume that is
+                    //     destroyed with the pod. Every build gets a fresh workspace,
+                    //     so cleanWs is unnecessary. It also requires the
+                    //     workspace-cleanup plugin which is not installed.
                     currentBuild.displayName = "#${BUILD_NUMBER}-${params.ENVIRONMENT}"
                     if (params.DEPLOY_VIA_GITOPS == 'yes') {
                         currentBuild.displayName += '-deploy'
