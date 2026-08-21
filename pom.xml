@@ -19,8 +19,11 @@
         <maven.compiler.target>17</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
-        <!-- Node/NPM versions -->
-        <node.version>v18.20.4</node.version>
+        <!-- Node/NPM versions.
+             Vite 7 requires Node >= 20.19 (or >= 22.12). Node 18 fails with
+             "Vite requires Node.js version 20.19+ or 22.12+" at build time.
+             npm 10.8.2 is the version shipped with Node 20.19.x. -->
+        <node.version>v20.19.0</node.version>
         <npm.version>10.8.2</npm.version>
 
         <!-- Plugin versions -->
