@@ -18,17 +18,16 @@ def isDeployment(String env) {
     return env in ['dev', 'staging', 'prod']
 }
 
+// Extract the version straight from pom.xml. Cheaper than shelling out to
+// Maven (no JVM startup, no container hop) and works before any build stage
+// has run. Uses XmlSlurper via a script-security-friendly parse.
+// NOTE: this reads project/version, not project/parent/version -- add a
+// fallback if this repo ever gains a parent pom whose version we care about.
+@NonCPS
 def readPomVersion() {
-    // Single source of truth: the Maven pom. Never hard-code the version
-    // in the pipeline. If the pom bumps, the pipeline follows automatically.
-    def v = ''
-    container('maven') {
-        v = sh(
-            script: "./mvnw -q -Dexec.executable=echo -Dexec.args='\${project.version}' --non-recursive exec:exec",
-            returnStdout: true
-        ).trim()
-    }
-    return v
+    def pomText = readFile('pom.xml')
+    def pom = new XmlSlurper().parseText(pomText)
+    return pom.version.text().trim()
 }
 
 def buildDockerImage() {
@@ -152,12 +151,26 @@ spec:
       env:
         - name: DOCKER_HOST
           value: tcp://localhost:2375
+        # jkube reads $DOCKER_CONFIG/config.json (falls back to $HOME/.docker/config.json).
+        # Setting DOCKER_CONFIG to the mount path avoids clashing with anything
+        # else that might live under /root/.docker.
+        - name: DOCKER_CONFIG
+          value: /root/.docker
       resources:
         requests: { cpu: "500m", memory: "1Gi" }
         limits:   { cpu: "2",    memory: "3Gi" }
       volumeMounts:
         - name: workspace-volume
           mountPath: /home/jenkins/agent
+        # Docker push credential -- projected from the K8s secret `registry-push`
+        # (populated by ESO from 1P). jkube's k8s:push consults this file when
+        # pushing to tooling.taptech.net:5000, otherwise the push is anonymous
+        # and hits 401. `subPath` avoids clobbering anything else the container
+        # image ships in /root/.docker/.
+        - name: docker-config
+          mountPath: /root/.docker/config.json
+          subPath: config.json
+          readOnly: true
     - name: docker
       image: docker:27-cli
       command: [ "sleep" ]
@@ -165,12 +178,18 @@ spec:
       env:
         - name: DOCKER_HOST
           value: tcp://localhost:2375
+        - name: DOCKER_CONFIG
+          value: /root/.docker
       resources:
         requests: { cpu: "100m", memory: "128Mi" }
         limits:   { cpu: "500m", memory: "512Mi" }
       volumeMounts:
         - name: workspace-volume
           mountPath: /home/jenkins/agent
+        - name: docker-config
+          mountPath: /root/.docker/config.json
+          subPath: config.json
+          readOnly: true
     - name: dind
       image: docker:27-dind
       securityContext:
@@ -195,6 +214,15 @@ spec:
       emptyDir: {}
     - name: docker-graph
       emptyDir: {}
+    - name: docker-config
+      secret:
+        secretName: registry-push
+        # Only project config.json; the same secret also holds .dockerconfigjson
+        # (identical bytes, different key) for kubelet imagePullSecret consumers
+        # and `username`/`password` for the Jenkins credentials-provider.
+        items:
+          - key: config.json
+            path: config.json
 '''
 
 pipeline {
