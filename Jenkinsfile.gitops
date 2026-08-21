@@ -1,0 +1,246 @@
+#!/usr/bin/env groovy
+//
+// GitOps-flavored pipeline for jaiclaw.io.
+//
+// Old flow: build image  ->  helm upgrade against a live cluster (imperative).
+// New flow: build image  ->  git commit + push a tag bump to taptech-gitops.
+//           ArgoCD on the mgmt cluster picks up the commit and syncs
+//           applications/jaiclaw-io/overlays/prod/ to apps-prod.
+//
+// Two immediate consequences vs the previous Jenkinsfile:
+//   1. Jenkins never talks to the target cluster. No kubeconfig credential.
+//   2. Deploys are auditable via git log of the taptech-gitops repo.
+//
+// Rollback = `git revert <sha>` in taptech-gitops. No `helm rollback`.
+//
+
+def isDeployment(String env) {
+    return env in ['dev', 'staging', 'prod']
+}
+
+def readPomVersion() {
+    // Single source of truth: the Maven pom. Never hard-code the version
+    // in the pipeline. If the pom bumps, the pipeline follows automatically.
+    return sh(
+        script: "./mvnw -q -Dexec.executable=echo -Dexec.args='\${project.version}' --non-recursive exec:exec",
+        returnStdout: true
+    ).trim()
+}
+
+def buildDockerImage() {
+    echo "Building React app + docker image ${DOCKER_IMAGE}:${env.FINAL_DOCKER_TAG}"
+
+    // Primary path: jkube's k8s:build. This is what the pom is set up for
+    // (see the <docker> profile in pom.xml) and is the intended tool.
+    //
+    // Known caveat: jkube 1.16.2 fails on Docker Desktop 29.x with
+    // "failed to export image: NotFound: content digest ... not found"
+    // (see taptech-holdings-ui/ISSUES.md for the full write-up). On a real
+    // Linux Jenkins agent with a native containerd/docker daemon this is
+    // expected to work; if it ever regresses here, the recovery is:
+    //     BDIR=target/docker/${DOCKER_REGISTRY}/${IMAGE_NAME}/${env.POM_VERSION}/build
+    //     docker build --platform=linux/amd64 -t \$IMAGE:\$TAG -f \$BDIR/Dockerfile \$BDIR
+    sh """
+        ./mvnw clean package k8s:build -Pprod,docker \\
+            -Ddocker.image.tag=${env.FINAL_DOCKER_TAG} \\
+            -DskipTests \\
+            ${MAVEN_OPTS}
+    """
+}
+
+def pushDockerImage() {
+    echo "Pushing ${DOCKER_IMAGE}:${env.FINAL_DOCKER_TAG}"
+
+    // Push via jkube too -- it already knows the image name/tag from the pom
+    // + -Ddocker.image.tag override above, and reuses whatever docker
+    // credential the agent has for tooling.taptech.net:5000.
+    //
+    // Deliberately do NOT push :latest for prod. GitOps commits an immutable
+    // tag; :latest muddies rollback and Argo diffs.
+    sh """
+        ./mvnw k8s:push -Pdocker \\
+            -Ddocker.image.tag=${env.FINAL_DOCKER_TAG} \\
+            ${MAVEN_OPTS}
+    """
+}
+
+def bumpKustomizeImage() {
+    // Clone taptech-gitops, edit the overlay's image tag, commit, push.
+    // ArgoCD polls the repo (default 3 min) and syncs the change to apps-prod.
+    // Nothing in this stage touches the target cluster.
+    def overlayPath = "applications/jaiclaw-io/overlays/${params.ENVIRONMENT}"
+
+    sh """
+        set -e
+        rm -rf taptech-gitops
+        git clone --depth=1 https://\${GITOPS_TOKEN_USR}:\${GITOPS_TOKEN_PSW}@github.com/glawson6/taptech-gitops.git
+        cd taptech-gitops
+
+        git config user.email 'jenkins@taptech.net'
+        git config user.name  'jenkins-jaiclaw-io'
+
+        cd ${overlayPath}
+        kustomize edit set image ${DOCKER_IMAGE}=${DOCKER_IMAGE}:${env.FINAL_DOCKER_TAG}
+        cd -
+
+        # If nothing changed (identical tag), no-op cleanly.
+        if git diff --quiet; then
+            echo 'no image change; skipping commit'
+            exit 0
+        fi
+
+        git add ${overlayPath}/kustomization.yaml
+        git commit -m 'jaiclaw-io ${params.ENVIRONMENT}: ${env.FINAL_DOCKER_TAG}
+
+Auto-committed by Jenkins build #${env.BUILD_NUMBER}.
+Overlay: ${overlayPath}
+Image:   ${DOCKER_IMAGE}:${env.FINAL_DOCKER_TAG}
+Source:  ${env.GIT_URL}@${env.GIT_COMMIT}'
+        git push origin main
+    """
+}
+
+pipeline {
+    agent any
+
+    parameters {
+        choice(
+            name: 'ENVIRONMENT',
+            choices: ['prod', 'staging', 'dev'],
+            description: 'Target overlay in taptech-gitops (applications/jaiclaw-io/overlays/<env>)'
+        )
+        booleanParam(
+            name: 'PUSH_IMAGE',
+            defaultValue: true,
+            description: 'Push the built image to the registry. Uncheck for a dry-run local build (skips k8s:push).'
+        )
+        choice(
+            name: 'DEPLOY_VIA_GITOPS',
+            choices: ['no', 'yes'],
+            description: 'Bump the tag in taptech-gitops so ArgoCD syncs? Requires PUSH_IMAGE=true. (no = build [+push] only)'
+        )
+        string(
+            name: 'DOCKER_TAG',
+            defaultValue: '',
+            description: 'Override docker tag. Empty => <pom-version>-<YYYYMMDD-HHMMSS>-<sha7>'
+        )
+    }
+
+    environment {
+        DOCKER_REGISTRY = 'tooling.taptech.net:5000'
+        IMAGE_NAME      = 'jaiclaw-io'
+        DOCKER_IMAGE    = "${DOCKER_REGISTRY}/${IMAGE_NAME}"
+        MAVEN_OPTS      = '-Dmaven.repo.local=.m2/repository'
+        NODE_VERSION    = '18.20.4'
+
+        // GitHub PAT with write access to taptech-gitops. Provisioned by ESO
+        // from 1Password vault (item `gitops-repo`, fields username+password)
+        // into the K8s Secret `gitops-repo` in the jenkins-agents namespace.
+        // Jenkins reads it via the kubernetes-credentials-provider plugin's
+        // Secret-to-Credential mirroring (matches Secret name = credential id).
+        GITOPS_TOKEN = credentials('gitops-repo')
+    }
+
+    options {
+        buildDiscarder(logRotator(numToKeepStr: '20'))
+        timeout(time: 30, unit: 'MINUTES')
+        skipStagesAfterUnstable()
+        disableConcurrentBuilds()
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                script {
+                    cleanWs()
+                    checkout scm
+                    currentBuild.displayName = "#${BUILD_NUMBER}-${params.ENVIRONMENT}"
+                    if (params.DEPLOY_VIA_GITOPS == 'yes') {
+                        currentBuild.displayName += '-deploy'
+                    }
+                }
+            }
+        }
+
+        stage('Compute Tag') {
+            steps {
+                script {
+                    // Single source of truth for the project version = pom.xml.
+                    // Never hard-code it here.
+                    env.POM_VERSION = readPomVersion()
+                    echo "Pom version: ${env.POM_VERSION}"
+
+                    // Immutable tag. Never 'latest'. Never overwritable.
+                    // Format: <pom-version>-<UTC timestamp>-<git sha7>. Encodes
+                    // "what code" (pom) + "when built" (ts) + "which commit" (sha)
+                    // so an image tag alone tells the full provenance story.
+                    if (params.DOCKER_TAG?.trim()) {
+                        env.FINAL_DOCKER_TAG = params.DOCKER_TAG.trim()
+                    } else {
+                        def ts = sh(script: "date -u +%Y%m%d-%H%M%S", returnStdout: true).trim()
+                        env.FINAL_DOCKER_TAG = "${env.POM_VERSION}-${ts}-${env.GIT_COMMIT.take(7)}"
+                    }
+                    echo "Docker tag: ${DOCKER_IMAGE}:${env.FINAL_DOCKER_TAG}"
+                    echo "Target overlay: applications/jaiclaw-io/overlays/${params.ENVIRONMENT}"
+                }
+            }
+        }
+
+        stage('Validate') {
+            steps {
+                script {
+                    // A GitOps deploy without a push would point ArgoCD at an
+                    // image tag that doesn't exist in the registry -- catch it
+                    // here, not 5 minutes into a failing rollout.
+                    if (params.DEPLOY_VIA_GITOPS == 'yes' && !params.PUSH_IMAGE) {
+                        error 'DEPLOY_VIA_GITOPS=yes requires PUSH_IMAGE=true; the tag must exist in the registry before ArgoCD can pull it.'
+                    }
+                }
+            }
+        }
+
+        stage('Build Image') {
+            steps { script { buildDockerImage() } }
+        }
+
+        stage('Push Image') {
+            when { expression { params.PUSH_IMAGE } }
+            steps { script { pushDockerImage() } }
+        }
+
+        stage('Bump Kustomize (GitOps)') {
+            when { expression { params.DEPLOY_VIA_GITOPS == 'yes' } }
+            steps { script { bumpKustomizeImage() } }
+        }
+
+        stage('Result') {
+            steps {
+                script {
+                    if (params.DEPLOY_VIA_GITOPS == 'yes') {
+                        echo """
+                          |------------------------------------------------------------------------
+                          |  Built + pushed ${DOCKER_IMAGE}:${env.FINAL_DOCKER_TAG}
+                          |  Committed image bump to taptech-gitops.
+                          |  ArgoCD Application: jaiclaw-io-${params.ENVIRONMENT}
+                          |  Watch: https://argocd.taptech.net/applications/argocd/jaiclaw-io-${params.ENVIRONMENT}
+                          |------------------------------------------------------------------------
+                        """.stripMargin()
+                    } else if (params.PUSH_IMAGE) {
+                        echo "Built + pushed ${DOCKER_IMAGE}:${env.FINAL_DOCKER_TAG}. No GitOps deploy requested."
+                    } else {
+                        echo "Built ${DOCKER_IMAGE}:${env.FINAL_DOCKER_TAG} locally. Not pushed. (dry-run)"
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            sh 'docker image prune -f || true'
+        }
+        cleanup {
+            cleanWs()
+        }
+    }
+}
