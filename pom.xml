@@ -33,16 +33,19 @@
         <maven-assembly-plugin.version>3.7.1</maven-assembly-plugin.version>
         <jkube.version>1.16.2</jkube.version>
 
-        <!-- Docker properties -->
+        <!-- Docker properties.
+             docker.image.tag defaults to the pom version for local builds
+             (`./mvnw k8s:build`) but CI overrides it with
+             -Ddocker.image.tag=<pom-version>-<UTC-ts>-<sha7> so every push
+             lands on an immutable, provenance-encoded tag.
+             Never set this to 'latest'. -->
         <docker.image.prefix>tooling.taptech.net:5000</docker.image.prefix>
         <docker.image.name>${docker.image.prefix}/${project.artifactId}</docker.image.name>
+        <docker.image.tag>${project.version}</docker.image.tag>
 
         <!-- Build properties -->
         <skip.npm.build>false</skip.npm.build>
         <skip.docker.build>false</skip.docker.build>
-
-        <!-- Timestamp format for Docker tags -->
-        <maven.build.timestamp.format>yyyyMMdd.HHmmss</maven.build.timestamp.format>
     </properties>
 
     <profiles>
@@ -89,7 +92,10 @@
                         <configuration>
                             <images>
                                 <image>
-                                    <name>${docker.image.name}:${project.version}</name>
+                                    <!-- Tag comes from -Ddocker.image.tag; defaults
+                                         to project.version for local builds. CI pins
+                                         an immutable dated tag. See property docs. -->
+                                    <name>${docker.image.name}:${docker.image.tag}</name>
                                     <alias>jaiclaw-io</alias>
                                     <build>
                                         <dockerFile>${project.basedir}/src/main/docker/Dockerfile</dockerFile>
@@ -97,10 +103,13 @@
                                         <buildOptions>
                                             <platform>linux/amd64</platform>
                                         </buildOptions>
-                                        <tags>
-                                            <tag>latest</tag>
-                                            <tag>${maven.build.timestamp}</tag>
-                                        </tags>
+                                        <!-- <tags> intentionally omitted. In CI the
+                                             primary <name> tag is already immutable
+                                             (encodes pom version + ts + sha); adding
+                                             latest/${maven.build.timestamp} on top
+                                             would push floating tags that break
+                                             ArgoCD's git-driven rollback story. -->
+
                                         <ports>
                                             <port>80</port>
                                         </ports>
@@ -277,7 +286,8 @@
                     <skip>${skip.docker.build}</skip>
                     <images>
                         <image>
-                            <name>${docker.image.name}:${project.version}</name>
+                            <!-- Same tag rule as the docker profile above. -->
+                            <name>${docker.image.name}:${docker.image.tag}</name>
                             <alias>jaiclaw-io</alias>
                             <build>
                                 <dockerFile>${project.basedir}/src/main/docker/Dockerfile</dockerFile>
@@ -301,10 +311,7 @@
                                 <buildOptions>
                                     <platform>linux/amd64</platform>
                                 </buildOptions>
-                                <tags>
-                                    <tag>latest</tag>
-                                    <tag>${maven.build.timestamp}</tag>
-                                </tags>
+                                <!-- <tags> omitted; see docker profile above for rationale. -->
                                 <ports>
                                     <port>80</port>
                                 </ports>
