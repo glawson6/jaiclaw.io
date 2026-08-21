@@ -20,14 +20,35 @@ def isDeployment(String env) {
 
 // Extract the version straight from pom.xml. Cheaper than shelling out to
 // Maven (no JVM startup, no container hop) and works before any build stage
-// has run. Uses XmlSlurper via a script-security-friendly parse.
-// NOTE: this reads project/version, not project/parent/version -- add a
-// fallback if this repo ever gains a parent pom whose version we care about.
-@NonCPS
+// has run.
+//
+// Uses a regex rather than XmlSlurper because:
+//   * @NonCPS + readFile() is illegal in Jenkins CPS pipelines (readFile is
+//     itself a CPS step and can't be called from a @NonCPS method). Removing
+//     @NonCPS forces XmlSlurper's iterator objects through CPS transforms
+//     which triggers a Script Approval dialog on every fresh Jenkins.
+//   * The regex is simple and unambiguous for a real pom: it targets the
+//     first <version> that appears BEFORE any <parent> or <dependencies>
+//     block would nest one. If this pom ever gains a <parent><version>,
+//     revisit -- but for a top-level project version, this is correct.
 def readPomVersion() {
-    def pomText = readFile('pom.xml')
-    def pom = new XmlSlurper().parseText(pomText)
-    return pom.version.text().trim()
+    def pom = readFile('pom.xml')
+    // Wrap the regex work in a script block that returns a plain String so
+    // no Matcher object survives to be serialized by CPS.
+    def version = extractPomVersion(pom)
+    if (!version) {
+        error 'readPomVersion: could not find <version> in pom.xml'
+    }
+    return version
+}
+
+// Marked @NonCPS so the regex Matcher (non-serializable) lives and dies
+// entirely inside this method. It's safe here because we don't call any
+// CPS step (readFile / sh / etc.) from inside -- only Groovy string ops.
+@NonCPS
+def extractPomVersion(String pom) {
+    def m = (pom =~ /(?s)<project[^>]*>.*?<version>([^<]+)<\/version>/)
+    return m ? m[0][1].trim() : null
 }
 
 def buildDockerImage() {
