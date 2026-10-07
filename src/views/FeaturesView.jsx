@@ -34,8 +34,8 @@ export default function FeaturesView() {
       <div className="intro">
         <h2>Features</h2>
         <p>
-          JaiClaw is deeper than the feature list suggests. Built on Java 21, Spring Boot 4.1.0, Spring AI 2.0.0,
-          Embabel 2.0.0, and Apache Camel 4.21, it provides everything you need to ship production AI assistants.
+          JaiClaw is deeper than the feature list suggests. Built on Java 21, Spring Boot 4.1.1, Spring AI 2.0.1,
+          Embabel 1.5.3, and Apache Camel 4.21, it provides everything you need to ship production AI assistants.
         </p>
       </div>
 

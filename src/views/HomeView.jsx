@@ -10,7 +10,7 @@ const MAVEN_SNIPPET = `<dependencyManagement>
     <dependency>
       <groupId>io.jaiclaw</groupId>
       <artifactId>jaiclaw-bom</artifactId>
-      <version>1.1.0</version>
+      <version>1.3.0</version>
       <type>pom</type>
       <scope>import</scope>
     </dependency>
@@ -54,9 +54,9 @@ export default function HomeView() {
         <div className="hero-content">
           <h1>The Java Framework for Building AI Assistants That Actually Ship</h1>
           <div className="version-badge-row">
-            <span className="version-badge">1.1 · Stable release</span>
+            <span className="version-badge">1.3 · Stable release</span>
           </div>
-          <p className="hero-subtitle">Java 21 · Spring Boot 4.1.0 · Spring AI 2.0.0 · Embabel 2.0.0 · Camel 4.21</p>
+          <p className="hero-subtitle">Java 21 · Spring Boot 4.1.1 · Spring AI 2.0.1 · Embabel 1.5.3 · Camel 4.21</p>
           <p className="hero-description">
             Production-ready <strong>agentic AI</strong> framework with 168 Maven modules and 31 Spring Boot starters. Connect any LLM to 11 messaging channels — Telegram, Slack, Discord, Email, SMS, Signal, Teams, WhatsApp, Google Chat, LINE, and Matrix — with tools, skills, memory, multi-agent planning, and MCP server hosting built in.
           </p>
@@ -153,7 +153,7 @@ export default function HomeView() {
         <CodeBlock code={MAVEN_SNIPPET} language="xml" />
         <p style={{ textAlign: 'center', color: '#666', fontSize: '0.9rem', maxWidth: 720, margin: '10px auto 0' }}>
           <i className="bi bi-info-circle" style={{ marginRight: 6, color: '#7851a9' }}></i>
-          1.1.0 is available on Maven Central. The TapTech Nexus mirror
+          1.3.0 is available on Maven Central. The TapTech Nexus mirror
           (<code>tooling.taptech.net/repository/maven-releases</code>) is
           maintained as an optional secondary source — see the commented block
           in the snippet above.
@@ -165,6 +165,68 @@ export default function HomeView() {
           code={`curl -fsSL https://jaiclaw.io/install.sh | bash`}
           language="bash"
         />
+      </section>
+
+      {/* What's New in 1.3.0 */}
+      <section className="home-features-section">
+        <div style={{
+          maxWidth: 900,
+          margin: '0 auto',
+          padding: '28px 32px',
+          background: '#f9f9f9',
+          border: '1px solid #e5e5e5',
+          borderLeft: '4px solid #cfb53b',
+          borderRadius: 6,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
+            <i className="bi bi-shield-lock" style={{ fontSize: '1.6rem', color: '#7851a9' }}></i>
+            <h3 style={{ margin: 0 }}>New in 1.3.0 — the fail-closed release</h3>
+          </div>
+          <p style={{ color: '#333', marginBottom: 12 }}>
+            Released to Maven Central on 2026-10-07. Security controls that existed but could
+            not be reached, or silently did nothing, now <strong>refuse</strong> where they used
+            to proceed.
+          </p>
+          <ul style={{ color: '#333', marginBottom: 12, paddingLeft: 20 }}>
+            <li>
+              <strong>Approval gate fails closed</strong> — a tool that requires approval with no
+              <code> ToolApprovalHandler</code> to ask is now denied, not executed.
+            </li>
+            <li>
+              <strong>Human-in-the-loop approval over chat</strong> — the approver replies with a
+              per-request code (<code>yes K7Q4</code>) so consent binds to one call, and
+              an approver <code>user-id</code> restricts who may answer in a group chat.
+            </li>
+            <li>
+              <strong>Webhook verification</strong> — Discord verifies Ed25519 interaction
+              signatures with a five-minute replay window; Slack and Telegram reject when the
+              verify flag is on but the secret is blank.
+            </li>
+            <li>
+              <strong><code>soc2</code> compliance profile</strong>, scheduled audit-chain
+              verification, and encryption at rest wired end to end.
+            </li>
+            <li>
+              Usable <code>MINIMAL</code> / <code>WEBHOOK_SAFE</code> tool profiles, cached
+              1Password lookups, and the emergency-stop actuator endpoint off by default.
+            </li>
+          </ul>
+          <p style={{ color: '#555', fontSize: '0.95rem', marginBottom: 12 }}>
+            Upgrading from 1.2.0? Read the breaking changes first — each only affects a
+            configuration where the control was never working.{' '}
+            <code>jaiclaw.security.default-tool-profile</code> still defaults to <code>FULL</code>;
+            the flip to <code>MINIMAL</code> moved to 1.4.0, so set it explicitly now.
+          </p>
+          <a
+            href={`${GITHUB_URL}/blob/main/releases/release-1.3.0.md`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="product-link-btn"
+            style={{ marginTop: 8 }}
+          >
+            Read the 1.3.0 release notes
+          </a>
+        </div>
       </section>
 
       {/* Key Features Grid */}
@@ -226,15 +288,17 @@ export default function HomeView() {
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
             <i className="bi bi-file-earmark-lock" style={{ fontSize: '1.6rem', color: '#7851a9' }}></i>
-            <h3 style={{ margin: 0 }}>GDPR + HIPAA compliance module — stable since 1.0</h3>
+            <h3 style={{ margin: 0 }}>Compliance profiles — GDPR, HIPAA, SOC 2 readiness</h3>
           </div>
           <p style={{ color: '#333', marginBottom: 12 }}>
             One property (<code>jaiclaw.compliance.profile</code>) turns on a coherent
             bundle of safeguards: LLM-call audit trail with Art. 30 fields, BAA-eligible
-            provider enforcement, retention purge, HTTPS startup guard, PHI redaction,
-            AES-GCM at-rest encryption, tamper-evident audit chain, and Art. 15 / 17 / 20
-            data subject rights. Compliance-<em>capable</em>, not certified — the
-            framework provides the raw material for a defensible deployment.
+            provider warnings, HTTPS startup guard, AES-GCM at-rest encryption (auto-wired
+            as of 1.3.0), a tamper-evident audit chain verified on a schedule, and
+            Art. 15 / 17 / 20 data subject rights. 1.3.0 adds a <code>soc2</code> profile
+            that assembles the technical controls a SOC 2 auditor asks to see.
+            Compliance-<em>capable</em>, not certified — no library can be SOC 2 compliant;
+            the framework provides the raw material for a defensible deployment.
           </p>
           <Link to="/enterprise" className="product-link-btn" style={{ marginTop: 8 }}>
             See the compliance capabilities

@@ -1,5 +1,5 @@
 import CodeBlock from '../components/CodeBlock.jsx';
-import { GITHUB_DOCS_URL, GITHUB_EXAMPLES_URL } from '../config/constants.js';
+import { GITHUB_URL, GITHUB_DOCS_URL, GITHUB_EXAMPLES_URL } from '../config/constants.js';
 import '../styles/hero.css';
 
 function DocGrid({ docs }) {
@@ -75,7 +75,7 @@ const referenceDocs = [
   },
   {
     title: 'Production Deployment',
-    description: 'Kubernetes, Helm, secrets, observability, resource sizing — the operator playbook for 1.1.',
+    description: 'Kubernetes, Helm, secrets, observability, resource sizing — the operator playbook.',
     url: `${GITHUB_DOCS_URL}/user/PRODUCTION-DEPLOYMENT.md`,
     icon: 'bi-hdd-network',
   },
@@ -84,6 +84,24 @@ const referenceDocs = [
     description: 'One property enables the compliance substrate: audit trail, retention, PHI redaction, BAA-eligible providers, Art. 15 / 17 / 20 rights.',
     url: `${GITHUB_DOCS_URL}/user/COMPLIANCE.md`,
     icon: 'bi-file-earmark-lock',
+  },
+  {
+    title: 'Budgets, Guards & Approval',
+    description: 'Iteration budgets, repetition and empty-response guards, per-tool approval floors, and approval over chat with code-bound replies (yes K7Q4) and approver identity.',
+    url: `${GITHUB_DOCS_URL}/user/BUDGETS-AND-GUARDS.md`,
+    icon: 'bi-hand-thumbs-up',
+  },
+  {
+    title: 'SOC 2 Mapping',
+    description: 'What the soc2 compliance profile turns on, mapped to the Trust Services Criteria — and why no library can itself be SOC 2 compliant.',
+    url: `${GITHUB_DOCS_URL}/compliance/soc2.md`,
+    icon: 'bi-clipboard-check',
+  },
+  {
+    title: 'Release Notes 1.3.0',
+    description: 'The fail-closed release: breaking changes, deferred items, known limitations, and dependency updates.',
+    url: `${GITHUB_URL}/blob/main/releases/release-1.3.0.md`,
+    icon: 'bi-journal-text',
   },
   {
     title: 'Authoring Channels',

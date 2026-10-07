@@ -3,7 +3,7 @@
 # JaiClaw Installer — curl-installable setup script
 #
 # Usage:
-#   curl -fsSL https://jaiclaw.io/install.sh | bash                        # default (JAR from Nexus)
+#   curl -fsSL https://jaiclaw.io/install.sh | bash                        # default (JAR from Maven Central)
 #   curl -fsSL https://jaiclaw.io/install.sh | bash -s -- --docker         # Docker-backed launcher
 #   curl -fsSL https://jaiclaw.io/install.sh | bash -s -- --from-source    # Build from git
 #
@@ -13,14 +13,16 @@
 #   ./install.sh --from-source                                              # From-source build
 #
 # Install modes:
-#   default        — download the CLI fat jar from Nexus (needs Java 21 locally;
-#                    offers to install via SDKMAN if missing). If the requested
-#                    version's fat jar is missing from Nexus (404 or corrupt),
-#                    AUTO-FALLS-BACK to --from-source using the matching git
-#                    tag (`v${JAICLAW_VERSION}`) — so `curl | bash` still lands
-#                    a working install even when a release's fat jar upload
-#                    failed. Set JAICLAW_REF to override the tag; set
-#                    JAICLAW_SOURCE_DIR to skip the clone.
+#   default        — download the CLI fat jar from Maven Central (needs Java 21
+#                    locally; offers to install via SDKMAN if missing). If the
+#                    requested version's fat jar is missing from Central (404
+#                    or corrupt), AUTO-FALLS-BACK to --from-source using the
+#                    matching git tag (`v${JAICLAW_VERSION}`) — so `curl | bash`
+#                    still lands a working install even when a release's fat
+#                    jar upload failed. Set JAICLAW_REF to override the tag;
+#                    set JAICLAW_SOURCE_DIR to skip the clone. Override the
+#                    JAR mirror via JAICLAW_CLI_BASE_URL (default: Maven
+#                    Central; TapTech Nexus is a valid alternative).
 #   --docker       — pull the CLI Docker image and install a shim launcher
 #                    (needs Docker locally; no Java needed).
 #   --from-source  — clone the repo (or use JAICLAW_SOURCE_DIR) and build the
@@ -33,7 +35,11 @@
 #   JAICLAW_REF                — git ref for --from-source (default: main)
 #   JAICLAW_SOURCE_DIR         — use an existing git checkout for --from-source
 #                                (skip the clone)
-#   JAICLAW_NON_INTERACTIVE    — skip TTY prompts (used for CI / curl|bash)
+#   JAICLAW_NON_INTERACTIVE    — skip TTY prompts (CI/curl|bash). Also
+#                                disables the auto-install prompts for both
+#                                Java (via SDKMAN) and git (via the platform
+#                                package manager); those paths print manual
+#                                instructions and exit degraded instead.
 #   JAICLAW_DOCKER_IMAGE_BASE  — override the Docker registry/repo
 #
 # Source: https://github.com/glawson6/jaiclaw/blob/main/install.sh
@@ -46,7 +52,7 @@ set -euo pipefail
 JAICLAW_VERSION="${JAICLAW_VERSION:-latest}"
 JAICLAW_HOME="${JAICLAW_HOME:-$HOME/.jaiclaw}"
 JAICLAW_REPO="glawson6/jaiclaw"
-JAICLAW_CLI_BASE_URL="${JAICLAW_CLI_BASE_URL:-https://tooling.taptech.net/repository/maven-public/io/jaiclaw/jaiclaw-cli}"
+JAICLAW_CLI_BASE_URL="${JAICLAW_CLI_BASE_URL:-https://repo1.maven.org/maven2/io/jaiclaw/jaiclaw-cli}"
 JAICLAW_DOCKER_IMAGE_BASE="${JAICLAW_DOCKER_IMAGE_BASE:-tooling.taptech.net:5000/jaiclaw-cli}"
 JAVA_MIN_VERSION=21
 
@@ -376,6 +382,15 @@ install_jar() {
     if ! curl -fsSL -o "$dest" "$url"; then
         rm -f "$dest"
         warn "CLI JAR not available on Nexus for version $JAICLAW_VERSION ($url)"
+        if [[ "$JAICLAW_VERSION" == "1.0.0" ]]; then
+            echo ""
+            echo "⚠  Known issue: jaiclaw-cli-1.0.0-exec.jar was lost during the"
+            echo "   Nexus deploy of 1.0.0 (Maven reported the 158 MB upload as"
+            echo "   succeeded, but Nexus did not retain it). The pom + thin jar"
+            echo "   are on Nexus, the fat jar is not. Because 1.0.0 is a release"
+            echo "   tag, the artifact will be republished under 1.0.1."
+            echo ""
+        fi
         fallback_to_source "$JAICLAW_VERSION"
         return $?
     fi
@@ -511,24 +526,172 @@ SHIM
 
 # ─── From-source install path ────────────────────────────────────────────────
 
-# Verify git is on PATH. We deliberately do NOT try to install git ourselves —
-# xcode-select on macOS launches a GUI installer, apt-get needs sudo, both
-# surprise operators running under curl|bash. Bail with a clear message.
+# Verify git is on PATH. If missing, best-effort auto-install via the platform's
+# package manager, gated on an interactive [Y/n] prompt read from /dev/tty so
+# it works under `curl | bash`. Falls back to printed manual instructions when:
+#   - JAICLAW_NON_INTERACTIVE=1 (CI/CD flows opt out by convention)
+#   - No TTY is attached (piped via ssh, batch runners, etc.)
+#   - Platform has no supported package manager we recognize
+#   - The install command reports success but git still isn't on PATH
+#
+# The consent prompt spells out the exact command that will run (and whether
+# it needs sudo) — no silent trust escalation. Parallels the SDKMAN/Java
+# auto-install already wired into check_java().
+
+# Silent probe. Used both as the top-of-function early-return and as the
+# post-install verification.
+probe_git() {
+    command -v git &>/dev/null
+}
+
+# Return 0 with GIT_INSTALL_CMD + GIT_INSTALL_NEEDS_SUDO set to the exact
+# command that would install git. Return 1 if no supported package manager
+# is available on this host.
+detect_git_install_cmd() {
+    case "$PLATFORM" in
+        macos)
+            if command -v brew &>/dev/null; then
+                GIT_INSTALL_CMD="brew install git"
+                GIT_INSTALL_NEEDS_SUDO=0
+            else
+                # xcode-select --install pops a GUI dialog + doesn't need sudo,
+                # but only works under a graphical desktop session.
+                GIT_INSTALL_CMD="xcode-select --install"
+                GIT_INSTALL_NEEDS_SUDO=0
+            fi
+            ;;
+        linux)
+            if command -v apt-get &>/dev/null; then
+                GIT_INSTALL_CMD="apt-get install -y git"; GIT_INSTALL_NEEDS_SUDO=1
+            elif command -v dnf &>/dev/null; then
+                GIT_INSTALL_CMD="dnf install -y git"; GIT_INSTALL_NEEDS_SUDO=1
+            elif command -v yum &>/dev/null; then
+                GIT_INSTALL_CMD="yum install -y git"; GIT_INSTALL_NEEDS_SUDO=1
+            elif command -v apk &>/dev/null; then
+                GIT_INSTALL_CMD="apk add git"; GIT_INSTALL_NEEDS_SUDO=1
+            elif command -v pacman &>/dev/null; then
+                GIT_INSTALL_CMD="pacman -S --noconfirm git"; GIT_INSTALL_NEEDS_SUDO=1
+            elif command -v zypper &>/dev/null; then
+                GIT_INSTALL_CMD="zypper install -y git"; GIT_INSTALL_NEEDS_SUDO=1
+            else
+                return 1
+            fi
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+    return 0
+}
+
+# Best-effort install via the detected package manager. Requires sudo on
+# Linux; on macOS uses brew (sudo-free) or xcode-select (GUI prompt, no sudo).
+# Prefers passwordless sudo (`sudo -n true`) so container/CI hosts with
+# NOPASSWD get transparent installs; falls back to interactive sudo when a
+# TTY is attached; bails when neither is available.
+install_git_via_package_manager() {
+    header "Installing git"
+
+    if ! detect_git_install_cmd; then
+        warn "Could not detect a supported package manager on $PLATFORM"
+        return 1
+    fi
+
+    local cmd="$GIT_INSTALL_CMD"
+    if [[ "${GIT_INSTALL_NEEDS_SUDO:-0}" == "1" ]]; then
+        if sudo -n true 2>/dev/null; then
+            cmd="sudo $cmd"
+        elif [[ -r /dev/tty ]] && command -v sudo &>/dev/null; then
+            # sudo talks to the terminal directly on macOS/Linux, so its
+            # password prompt appears on /dev/tty even when our stdin is
+            # from `curl | bash`.
+            cmd="sudo $cmd"
+        else
+            err "git install requires sudo, and this shell has neither"
+            err "passwordless sudo nor a TTY for the sudo prompt."
+            return 1
+        fi
+    fi
+
+    info "Running: $cmd"
+    if eval "$cmd"; then
+        if probe_git; then
+            ok "git $(git --version | awk '{print $3}') installed"
+            return 0
+        fi
+        err "install command reported success but git still not on PATH"
+        return 1
+    fi
+
+    err "git install command failed"
+    return 1
+}
+
+# Print platform-appropriate manual install instructions. Used both by the
+# non-interactive/no-TTY exit path and after a failed auto-install attempt.
+print_git_manual_instructions() {
+    echo ""
+    echo "Install git:"
+    case "$PLATFORM" in
+        macos)
+            echo "  xcode-select --install     # opens the Developer Tools installer"
+            echo "  # or: brew install git"
+            ;;
+        linux)
+            echo "  sudo apt install git       # Debian / Ubuntu"
+            echo "  # or: sudo dnf install git   # Fedora / RHEL / Rocky"
+            echo "  # or: sudo apk add git       # Alpine"
+            ;;
+    esac
+    echo ""
+    echo "Then re-run this installer."
+}
+
+# Orchestrate. Kept the historical name so callers don't change.
 detect_git() {
     header "Checking git"
-    if ! command -v git &>/dev/null; then
-        err "git not found on PATH"
-        echo ""
-        echo "Install git:"
-        case "$PLATFORM" in
-            macos) echo "  xcode-select --install     # opens the Developer Tools installer" ;;
-            linux) echo "  sudo apt install git       # or your distro's equivalent" ;;
-        esac
-        echo ""
-        echo "Then re-run this installer with --from-source."
+
+    if probe_git; then
+        ok "git $(git --version | awk '{print $3}') found"
+        return 0
+    fi
+
+    warn "git not found on PATH"
+
+    # Non-interactive OR no TTY: never touch the system. Print + exit degraded.
+    if [[ "${JAICLAW_NON_INTERACTIVE:-false}" == "true" ]] || [[ ! -r /dev/tty ]]; then
+        print_git_manual_instructions
         exit 1
     fi
-    ok "git $(git --version | awk '{print $3}') found"
+
+    # Interactive + we have a package manager we know how to drive.
+    if ! detect_git_install_cmd; then
+        print_git_manual_instructions
+        exit 1
+    fi
+
+    # Loud prompt via /dev/tty (works under curl|bash).
+    echo ""
+    local prompt="Install git now via '$GIT_INSTALL_CMD'"
+    [[ "${GIT_INSTALL_NEEDS_SUDO:-0}" == "1" ]] && prompt="$prompt (requires sudo)"
+    prompt="$prompt? [Y/n] "
+
+    local answer=""
+    read -rp "$prompt" answer </dev/tty || answer=""
+    case "${answer,,}" in
+        ""|y|yes)
+            if install_git_via_package_manager; then
+                return 0
+            fi
+            warn "Falling back to manual install instructions"
+            print_git_manual_instructions
+            exit 1
+            ;;
+        *)
+            print_git_manual_instructions
+            exit 1
+            ;;
+    esac
 }
 
 # Clone the repo into $JAICLAW_HOME/src, or use $JAICLAW_SOURCE_DIR as-is.

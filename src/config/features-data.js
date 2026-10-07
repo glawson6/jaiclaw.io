@@ -143,12 +143,14 @@ export const features = [
     id: 'security',
     title: 'Security Hardening',
     icon: 'bi-shield-check',
-    description: 'Six opt-in protections: HMAC webhook verification, SSRF guards, workspace path boundaries, timing-safe auth, agent-to-agent ECDH key exchange.',
+    description: 'Opt-in protections via the security-hardened profile: webhook signature verification, SSRF guards, workspace path boundaries, timing-safe auth, agent-to-agent ECDH key exchange. As of 1.3.0 the controls fail closed — a check that cannot be performed refuses instead of proceeding.',
     highlights: [
       { label: 'ECDH P-256', detail: 'Agent-to-agent key exchange' },
       { label: 'JWT Sessions', detail: 'Challenge-response identity verification' },
       { label: 'SSRF Guards', detail: 'Outbound request filtering' },
       { label: 'Audit Trail', detail: 'Full action logging' },
+      { label: 'Webhook Signatures', detail: 'Slack HMAC, Telegram secret token, Discord Ed25519 with a 5-minute replay window — a verify flag with a blank secret rejects (1.3.0)' },
+      { label: 'Approval Over Chat', detail: 'PROMPT_ALWAYS tools ask a configured approver, who replies with a per-request code (yes K7Q4); no handler means denied, not executed (1.3.0)' },
     ],
   },
   {
@@ -225,6 +227,7 @@ export const features = [
       { label: 'Env + File Backends', detail: 'EnvironmentSecretsProvider (default) and FileSecretsProvider (.env files) — zero-config for local dev' },
       { label: 'Per-Tenant Prefixing', detail: 'TenantSecretsResolver namespaces secrets so multi-tenant deployments never leak across tenants' },
       { label: 'Transparent Placeholders', detail: 'Existing ${MY_VAR} refs keep working — the provider fronts them via Spring PropertySource' },
+      { label: 'Cached Lookups', detail: 'CachingSecretsProvider caches hits and misses so 1Password is not called per property; refresh() is the rotation hook; a missing op binary is reported at startup (1.3.0)' },
     ],
   },
   {
