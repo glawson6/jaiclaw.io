@@ -98,6 +98,12 @@ const referenceDocs = [
     icon: 'bi-clipboard-check',
   },
   {
+    title: 'Release Notes 1.3.1',
+    description: 'Dependency refresh: Spring Boot 4.1.2, Camel 4.23.0 LTS, Drools 10.2, fabric8 8. No API, configuration or behaviour changes.',
+    url: `${GITHUB_URL}/blob/main/releases/release-1.3.1.md`,
+    icon: 'bi-journal-text',
+  },
+  {
     title: 'Release Notes 1.3.0',
     description: 'The fail-closed release: breaking changes, deferred items, known limitations, and dependency updates.',
     url: `${GITHUB_URL}/blob/main/releases/release-1.3.0.md`,

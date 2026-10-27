@@ -10,7 +10,7 @@ const MAVEN_SNIPPET = `<dependencyManagement>
     <dependency>
       <groupId>io.jaiclaw</groupId>
       <artifactId>jaiclaw-bom</artifactId>
-      <version>1.3.0</version>
+      <version>1.3.1</version>
       <type>pom</type>
       <scope>import</scope>
     </dependency>
@@ -54,9 +54,9 @@ export default function HomeView() {
         <div className="hero-content">
           <h1>The Java Framework for Building AI Assistants That Actually Ship</h1>
           <div className="version-badge-row">
-            <span className="version-badge">1.3 · Stable release</span>
+            <span className="version-badge">1.3.1 · Stable release</span>
           </div>
-          <p className="hero-subtitle">Java 21 · Spring Boot 4.1.1 · Spring AI 2.0.1 · Embabel 1.5.3 · Camel 4.21</p>
+          <p className="hero-subtitle">Java 21 · Spring Boot 4.1.2 · Spring AI 2.0.1 · Embabel 1.5.3 · Camel 4.23</p>
           <p className="hero-description">
             Production-ready <strong>agentic AI</strong> framework with 168 Maven modules and 31 Spring Boot starters. Connect any LLM to 11 messaging channels — Telegram, Slack, Discord, Email, SMS, Signal, Teams, WhatsApp, Google Chat, LINE, and Matrix — with tools, skills, memory, multi-agent planning, and MCP server hosting built in.
           </p>
@@ -153,7 +153,7 @@ export default function HomeView() {
         <CodeBlock code={MAVEN_SNIPPET} language="xml" />
         <p style={{ textAlign: 'center', color: '#666', fontSize: '0.9rem', maxWidth: 720, margin: '10px auto 0' }}>
           <i className="bi bi-info-circle" style={{ marginRight: 6, color: '#7851a9' }}></i>
-          1.3.0 is available on Maven Central. The TapTech Nexus mirror
+          1.3.1 is available on Maven Central. The TapTech Nexus mirror
           (<code>tooling.taptech.net/repository/maven-releases</code>) is
           maintained as an optional secondary source — see the commented block
           in the snippet above.
@@ -167,8 +167,17 @@ export default function HomeView() {
         />
       </section>
 
-      {/* What's New in 1.3.0 */}
+      {/* What's New in 1.3.1 / 1.3.0 */}
       <section className="home-features-section">
+        <p style={{ maxWidth: 900, margin: '0 auto 16px', color: '#333' }}>
+          <i className="bi bi-arrow-repeat" style={{ marginRight: 6, color: '#7851a9' }}></i>
+          <strong>1.3.1 — dependency refresh</strong> (2026-10-26): Spring Boot 4.1.2, Apache
+          Camel 4.23.0 LTS, Drools 10.2, fabric8 8. No API, configuration or behaviour
+          changes — bump the BOM version.{' '}
+          <a href={`${GITHUB_URL}/blob/main/releases/release-1.3.1.md`} target="_blank" rel="noopener noreferrer">
+            1.3.1 release notes
+          </a>
+        </p>
         <div style={{
           maxWidth: 900,
           margin: '0 auto',
