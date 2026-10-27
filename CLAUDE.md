@@ -65,6 +65,11 @@ deploy path.
 TAG=1.0.0-SNAPSHOT-$(date +%Y%m%d-%H%M%S)-$(git rev-parse --short=7 HEAD)
 IMG=tooling.taptech.net:5000/jaiclaw-io:$TAG
 ./mvnw clean package k8s:build -Pprod,docker -Ddocker.image.tag=$TAG
+#    On this Mac's Docker Desktop, JKube's k8s:build fails at the very end with
+#    `failed to export image: NotFound: content digest ...` (seen 2026-10-07 and 2026-10-26).
+#    The context is already assembled by then, so build from it directly:
+CTX=$(ls -d target/docker/tooling.taptech.net/5000/jaiclaw-io/*/build | tail -1)
+docker build --platform linux/amd64 -t "$IMG" -f "$CTX/Dockerfile" "$CTX"
 docker push "$IMG"
 
 # 3. Bump the image tag in GitOps, commit, push
