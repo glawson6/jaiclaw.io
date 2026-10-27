@@ -105,7 +105,7 @@ const referenceDocs = [
   },
   {
     title: 'Release Notes 1.3.0',
-    description: 'The fail-closed release: breaking changes, deferred items, known limitations, and dependency updates.',
+    description: 'The 1.3 feature release (fail-closed): breaking changes, deferred items, known limitations, and dependency updates.',
     url: `${GITHUB_URL}/blob/main/releases/release-1.3.0.md`,
     icon: 'bi-journal-text',
   },

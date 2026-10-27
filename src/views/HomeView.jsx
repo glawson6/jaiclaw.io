@@ -167,17 +167,8 @@ export default function HomeView() {
         />
       </section>
 
-      {/* What's New in 1.3.1 / 1.3.0 */}
+      {/* What's New in 1.3 */}
       <section className="home-features-section">
-        <p style={{ maxWidth: 900, margin: '0 auto 16px', color: '#333' }}>
-          <i className="bi bi-arrow-repeat" style={{ marginRight: 6, color: '#7851a9' }}></i>
-          <strong>1.3.1 — dependency refresh</strong> (2026-10-26): Spring Boot 4.1.2, Apache
-          Camel 4.23.0 LTS, Drools 10.2, fabric8 8. No API, configuration or behaviour
-          changes — bump the BOM version.{' '}
-          <a href={`${GITHUB_URL}/blob/main/releases/release-1.3.1.md`} target="_blank" rel="noopener noreferrer">
-            1.3.1 release notes
-          </a>
-        </p>
         <div style={{
           maxWidth: 900,
           margin: '0 auto',
@@ -189,12 +180,14 @@ export default function HomeView() {
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
             <i className="bi bi-shield-lock" style={{ fontSize: '1.6rem', color: '#7851a9' }}></i>
-            <h3 style={{ margin: 0 }}>New in 1.3.0 — the fail-closed release</h3>
+            <h3 style={{ margin: 0 }}>New in 1.3 — the fail-closed release</h3>
           </div>
           <p style={{ color: '#333', marginBottom: 12 }}>
-            Released to Maven Central on 2026-10-07. Security controls that existed but could
-            not be reached, or silently did nothing, now <strong>refuse</strong> where they used
-            to proceed.
+            <strong>1.3.1</strong> (2026-10-26) is the current release: a dependency refresh to
+            Spring Boot 4.1.2, Apache Camel 4.23.0 LTS, Drools 10.2 and fabric8 8 with no API,
+            configuration or behaviour changes — bump the BOM version. The feature line is
+            <strong> 1.3.0</strong> (2026-10-07): security controls that existed but could not be
+            reached, or silently did nothing, now <strong>refuse</strong> where they used to proceed.
           </p>
           <ul style={{ color: '#333', marginBottom: 12, paddingLeft: 20 }}>
             <li>
@@ -226,15 +219,24 @@ export default function HomeView() {
             <code>jaiclaw.security.default-tool-profile</code> still defaults to <code>FULL</code>;
             the flip to <code>MINIMAL</code> moved to 1.4.0, so set it explicitly now.
           </p>
-          <a
-            href={`${GITHUB_URL}/blob/main/releases/release-1.3.0.md`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="product-link-btn"
-            style={{ marginTop: 8 }}
-          >
-            Read the 1.3.0 release notes
-          </a>
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 8 }}>
+            <a
+              href={`${GITHUB_URL}/blob/main/releases/release-1.3.1.md`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="product-link-btn"
+            >
+              1.3.1 release notes
+            </a>
+            <a
+              href={`${GITHUB_URL}/blob/main/releases/release-1.3.0.md`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="product-link-btn"
+            >
+              1.3.0 release notes
+            </a>
+          </div>
         </div>
       </section>
 
@@ -303,8 +305,8 @@ export default function HomeView() {
             One property (<code>jaiclaw.compliance.profile</code>) turns on a coherent
             bundle of safeguards: LLM-call audit trail with Art. 30 fields, BAA-eligible
             provider warnings, HTTPS startup guard, AES-GCM at-rest encryption (auto-wired
-            as of 1.3.0), a tamper-evident audit chain verified on a schedule, and
-            Art. 15 / 17 / 20 data subject rights. 1.3.0 adds a <code>soc2</code> profile
+            since 1.3), a tamper-evident audit chain verified on a schedule, and
+            Art. 15 / 17 / 20 data subject rights. The 1.3 line adds a <code>soc2</code> profile
             that assembles the technical controls a SOC 2 auditor asks to see.
             Compliance-<em>capable</em>, not certified — no library can be SOC 2 compliant;
             the framework provides the raw material for a defensible deployment.

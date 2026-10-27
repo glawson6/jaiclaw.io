@@ -186,7 +186,7 @@ export default function EnterpriseView() {
             Human-in-the-loop approval over chat
           </h2>
           <p>
-            New in 1.3.0. A tool floored to <code>PROMPT_ALWAYS</code> asks a configured
+            Since 1.3, a tool floored to <code>PROMPT_ALWAYS</code> asks a configured
             approver — never whoever triggered the run — and waits for a text reply. Every
             request carries a short code the approver must quote back (<code>yes K7Q4</code>),
             so an answer cannot be applied to a different call than the one it was read
