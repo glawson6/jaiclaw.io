@@ -62,7 +62,10 @@ deploy path.
 # 1+2. Build the site and the image in one go (JKube, linux/amd64, immutable tag) — same
 #      command the old Jenkinsfile used. Plain `-Pprod` only runs the React build; the
 #      `docker` profile binds k8s:build.
-TAG=1.0.0-SNAPSHOT-$(date +%Y%m%d-%H%M%S)-$(git rev-parse --short=7 HEAD)
+#    The site's pom/package.json version tracks the JaiClaw release it documents (1.3.1 today).
+#    Bump both when a JaiClaw release ships, so the image tag says which release the site describes.
+VER=$(sed -n 's|.*<version>\(.*\)</version>.*|\1|p' pom.xml | head -1)
+TAG=$VER-$(date +%Y%m%d-%H%M%S)-$(git rev-parse --short=7 HEAD)
 IMG=tooling.taptech.net:5000/jaiclaw-io:$TAG
 ./mvnw clean package k8s:build -Pprod,docker -Ddocker.image.tag=$TAG
 #    On this Mac's Docker Desktop, JKube's k8s:build fails at the very end with
